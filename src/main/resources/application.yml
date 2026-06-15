@@ -1,0 +1,26 @@
+cafe24:
+  client-id: duiIOOc5CZ0qi44wlLsRaA
+  client-secret: ohgwXDg7EBLiCfaAcnAYfG
+  mall-id: entwizcomms
+  redirect-uri: https://nervy-founder-schematic.ngrok-free.dev/oauth/callback
+
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/cafe24
+    username: root
+    password: rlaxodms99!!
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+
+    show-sql: true
+
+server:
+  port: 8080
