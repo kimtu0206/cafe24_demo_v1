@@ -22,7 +22,7 @@ public class Cafe24OAuthService {
 
         String tokenUrl =
                 "https://" + cafe24Properties.getMallId()
-                        + ".cafe24api.com/api/v2/oauth/token";
+                        + ".cafe24.com/api/v2/oauth/token";
 
         RestTemplate restTemplate = new RestTemplate();
 
@@ -58,6 +58,7 @@ public class Cafe24OAuthService {
                             request,
                             Cafe24TokenResponse.class
                     );
+            System.out.println("TOKEN RESPONSE = {}"+ response.getBody());
 
             return response.getBody();
 
@@ -77,7 +78,7 @@ public class Cafe24OAuthService {
 
         String tokenUrl =
                 "https://" + cafe24Properties.getMallId()
-                        + ".cafe24api.com/api/v2/oauth/token";
+                        + ".cafe24.com/api/v2/oauth/token";
 
         RestTemplate restTemplate = new RestTemplate();
 

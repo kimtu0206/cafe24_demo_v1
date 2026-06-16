@@ -66,7 +66,7 @@ public class OAuthController {
         String authUrl = UriComponentsBuilder.fromUriString(
                         "https://"
                                 + cafe24Properties.getMallId()
-                                + ".cafe24api.com/api/v2/oauth/authorize"
+                                + ".cafe24.com/api/v2/oauth/authorize"
                 )
                 .queryParam(
                         "response_type",
@@ -91,6 +91,10 @@ public class OAuthController {
                 .build()
                 .encode()
                 .toUriString();
+
+        System.out.println("AUTH URL = {}"+ authUrl);
+
+
 
         response.sendRedirect(authUrl);
     }

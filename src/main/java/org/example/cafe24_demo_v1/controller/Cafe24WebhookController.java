@@ -3,7 +3,6 @@ package org.example.cafe24_demo_v1.controller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.dto.Cafe24WebhookRequest;
-import org.example.cafe24_demo_v1.service.Cafe24WebhookService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,14 +16,6 @@ public class Cafe24WebhookController {
 
     @Value("${cafe24.webhook.api-key}")
     private String webhookApiKey;
-
-    private final Cafe24WebhookService webhookService;
-
-    @PostMapping("/register")
-    public ResponseEntity<String> register() {
-        webhookService.registerAllWebhooks();
-        return ResponseEntity.ok("웹훅 등록 완료");
-    }
 
     @PostMapping("/cafe24")
     public ResponseEntity<Void> receive(
