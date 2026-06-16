@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @Table(name = "cafe24_token")
 @Getter
 @Setter
-public class Cafe24Token {
+public class Token {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

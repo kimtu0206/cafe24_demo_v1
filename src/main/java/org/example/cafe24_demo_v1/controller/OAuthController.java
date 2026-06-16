@@ -5,9 +5,9 @@ import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.config.Cafe24Properties;
-import org.example.cafe24_demo_v1.dto.Cafe24TokenResponse;
-import org.example.cafe24_demo_v1.service.Cafe24OAuthService;
-import org.example.cafe24_demo_v1.service.Cafe24TokenService;
+import org.example.cafe24_demo_v1.dto.TokenResponse;
+import org.example.cafe24_demo_v1.service.OAuthService;
+import org.example.cafe24_demo_v1.service.TokenService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -24,8 +24,8 @@ public class OAuthController {
     private static final String SESSION_STATE_KEY = "cafe24_oauth_state";
 
     private final Cafe24Properties cafe24Properties;
-    private final Cafe24OAuthService oauthService;
-    private final Cafe24TokenService tokenService;
+    private final OAuthService oauthService;
+    private final TokenService tokenService;
 
     @GetMapping("/oauth/login")
     public void login(HttpServletResponse response, HttpSession session) throws IOException {
@@ -57,7 +57,7 @@ public class OAuthController {
 
         session.removeAttribute(SESSION_STATE_KEY);
 
-        Cafe24TokenResponse token = oauthService.getAccessToken(code);
+        TokenResponse token = oauthService.getAccessToken(code);
         tokenService.saveToken(cafe24Properties.getMallId(), token);
 
         return "success";

@@ -2,9 +2,9 @@ package org.example.cafe24_demo_v1.service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.cafe24_demo_v1.config.Cafe24Properties;
-import org.example.cafe24_demo_v1.entity.Cafe24Token;
-import org.example.cafe24_demo_v1.dto.Cafe24TokenResponse;
-import org.example.cafe24_demo_v1.repository.Cafe24TokenRepository;
+import org.example.cafe24_demo_v1.entity.Token;
+import org.example.cafe24_demo_v1.dto.TokenResponse;
+import org.example.cafe24_demo_v1.repository.TokenRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,17 +14,17 @@ import java.time.format.DateTimeParseException;
 
 @Service
 @RequiredArgsConstructor
-public class Cafe24TokenService {
+public class TokenService {
 
-    private final Cafe24TokenRepository tokenRepository;
-    private final Cafe24OAuthService oauthService;
+    private final TokenRepository tokenRepository;
+    private final OAuthService oauthService;
     private final Cafe24Properties cafe24Properties;
 
     @Transactional
-    public void saveToken(String mallId, Cafe24TokenResponse response) {
-        Cafe24Token token = tokenRepository
+    public void saveToken(String mallId, TokenResponse response) {
+        Token token = tokenRepository
                 .findByMallIdAndClientId(mallId, cafe24Properties.getClientId())
-                .orElse(new Cafe24Token());
+                .orElse(new Token());
 
         token.setMallId(mallId);
         token.setClientId(cafe24Properties.getClientId());
@@ -39,11 +39,11 @@ public class Cafe24TokenService {
 
     @Transactional
     public void refreshToken(String mallId) {
-        Cafe24Token token = tokenRepository
+        Token token = tokenRepository
                 .findByMallIdAndClientId(mallId, cafe24Properties.getClientId())
                 .orElseThrow();
 
-        Cafe24TokenResponse refreshed = oauthService.refreshAccessToken(token.getRefreshToken());
+        TokenResponse refreshed = oauthService.refreshAccessToken(token.getRefreshToken());
         saveToken(mallId, refreshed);
     }
 

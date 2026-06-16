@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
-public class Cafe24WebhookRequest {
+public class WebhookRequest {
 
     @JsonProperty("event_no")
     private Integer eventNo;

@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class Cafe24TokenResponse {
+public class TokenResponse {
 
     @JsonProperty("access_token")
     private String accessToken;
