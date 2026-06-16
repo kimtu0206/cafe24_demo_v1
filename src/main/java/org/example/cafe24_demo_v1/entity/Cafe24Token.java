@@ -17,7 +17,6 @@ public class Cafe24Token {
     private Long id;
 
     private String mallId;
-
     private String clientId;
 
     @Column(length = 1000)
@@ -27,14 +26,19 @@ public class Cafe24Token {
     private String refreshToken;
 
     private String tokenType;
-
-    private Integer expiresIn;
-
     private LocalDateTime accessTokenExpiresAt;
-
     private LocalDateTime refreshTokenExpiresAt;
-
     private LocalDateTime createdAt;
-
     private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }

@@ -21,97 +21,37 @@ public class Cafe24TokenService {
     private final Cafe24Properties cafe24Properties;
 
     @Transactional
-    public void saveToken(
-            String mallId,
-            Cafe24TokenResponse response
-    ) {
-
-        Cafe24Token token =
-                tokenRepository
-                        .findByMallIdAndClientId(
-                                mallId,
-                                cafe24Properties.getClientId()
-                        )
-                        .orElse(new Cafe24Token());
+    public void saveToken(String mallId, Cafe24TokenResponse response) {
+        Cafe24Token token = tokenRepository
+                .findByMallIdAndClientId(mallId, cafe24Properties.getClientId())
+                .orElse(new Cafe24Token());
 
         token.setMallId(mallId);
-
-        token.setClientId(
-                cafe24Properties.getClientId()
-        );
-
-        token.setAccessToken(
-                response.getAccessToken()
-        );
-
-        token.setRefreshToken(
-                response.getRefreshToken()
-        );
-
-        token.setTokenType(
-                response.getTokenType()
-        );
-
-        token.setAccessTokenExpiresAt(
-                parseCafe24DateTime(
-                        response.getExpiresAt()
-                )
-        );
-
-        token.setRefreshTokenExpiresAt(
-                parseCafe24DateTime(
-                        response.getRefreshTokenExpiresAt()
-                )
-        );
-
-        token.setUpdatedAt(
-                LocalDateTime.now()
-        );
-
-        if (token.getCreatedAt() == null) {
-            token.setCreatedAt(
-                    LocalDateTime.now()
-            );
-        }
+        token.setClientId(cafe24Properties.getClientId());
+        token.setAccessToken(response.getAccessToken());
+        token.setRefreshToken(response.getRefreshToken());
+        token.setTokenType(response.getTokenType());
+        token.setAccessTokenExpiresAt(parseCafe24DateTime(response.getExpiresAt()));
+        token.setRefreshTokenExpiresAt(parseCafe24DateTime(response.getRefreshTokenExpiresAt()));
 
         tokenRepository.save(token);
     }
 
     @Transactional
     public void refreshToken(String mallId) {
+        Cafe24Token token = tokenRepository
+                .findByMallIdAndClientId(mallId, cafe24Properties.getClientId())
+                .orElseThrow();
 
-        Cafe24Token token =
-                tokenRepository
-                        .findByMallIdAndClientId(
-                                mallId,
-                                cafe24Properties.getClientId()
-                        )
-                        .orElseThrow();
-
-        Cafe24TokenResponse refreshed =
-                oauthService.refreshAccessToken(
-                        token.getRefreshToken()
-                );
-
-        saveToken(
-                mallId,
-                refreshed
-        );
+        Cafe24TokenResponse refreshed = oauthService.refreshAccessToken(token.getRefreshToken());
+        saveToken(mallId, refreshed);
     }
 
-    private LocalDateTime parseCafe24DateTime(
-            String value
-    ) {
-
+    private LocalDateTime parseCafe24DateTime(String value) {
         try {
-
             return LocalDateTime.parse(value);
-
         } catch (DateTimeParseException e) {
-
-            return OffsetDateTime
-                    .parse(value)
-                    .toLocalDateTime();
+            return OffsetDateTime.parse(value).toLocalDateTime();
         }
     }
 }

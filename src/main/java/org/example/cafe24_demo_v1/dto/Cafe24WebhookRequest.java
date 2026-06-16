@@ -1,11 +1,9 @@
 package org.example.cafe24_demo_v1.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
-@Getter
-@Setter
+@Data
 public class Cafe24WebhookRequest {
 
     @JsonProperty("event_no")
@@ -13,8 +11,7 @@ public class Cafe24WebhookRequest {
 
     private Resource resource;
 
-    @Getter
-    @Setter
+    @Data
     public static class Resource {
 
         @JsonProperty("mall_id")
