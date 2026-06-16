@@ -11,6 +11,7 @@ cafe24:
   state: cafe24-demo-state
   webhook:
     api-key: ${CAFE24_WEBHOOK_API_KEY}
+    callback-url: ${CAFE24_WEBHOOK_CALLBACK_URL}
 
 spring:
   datasource:

@@ -22,4 +22,13 @@ public class Cafe24Properties {
     private String scope;
 
     private String state;
+
+    private Webhook webhook = new Webhook();
+
+    @Getter
+    @Setter
+    public static class Webhook {
+        private String apiKey;
+        private String callbackUrl;
+    }
 }
