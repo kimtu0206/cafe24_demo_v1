@@ -18,7 +18,7 @@ import org.springframework.web.client.RestTemplate;
 public class Cafe24OAuthService {
     private final Cafe24Properties cafe24Properties;
 
-    public String getAccessToken(String code) {
+    public Cafe24TokenResponse getAccessToken(String code) {
 
         String tokenUrl =
                 "https://" + cafe24Properties.getMallId()
@@ -52,11 +52,11 @@ public class Cafe24OAuthService {
 
         try {
 
-            ResponseEntity<String> response =
+            ResponseEntity<Cafe24TokenResponse> response =
                     restTemplate.postForEntity(
                             tokenUrl,
                             request,
-                            String.class
+                            Cafe24TokenResponse.class
                     );
 
             return response.getBody();

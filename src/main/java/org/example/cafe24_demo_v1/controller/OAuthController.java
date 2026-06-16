@@ -1,6 +1,5 @@
 package org.example.cafe24_demo_v1.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -28,8 +27,7 @@ public class OAuthController {
     @GetMapping("/oauth/callback")
     public String callback( @RequestParam String code,
                             @RequestParam String state,
-                            HttpSession session)
-            throws Exception {
+                            HttpSession session) {
 
         String savedState =
                 (String) session.getAttribute(
@@ -46,16 +44,8 @@ public class OAuthController {
                 "cafe24_oauth_state"
         );
 
-        String responseJson =
-                oauthService.getAccessToken(code);
-
-        ObjectMapper mapper = new ObjectMapper();
-
         Cafe24TokenResponse token =
-                mapper.readValue(
-                        responseJson,
-                        Cafe24TokenResponse.class
-                );
+                oauthService.getAccessToken(code);
 
         tokenService.saveToken(
                 cafe24Properties.getMallId(),

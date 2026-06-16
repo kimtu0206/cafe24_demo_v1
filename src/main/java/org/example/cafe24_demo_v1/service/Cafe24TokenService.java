@@ -58,8 +58,10 @@ public class Cafe24TokenService {
                 )
         );
 
-        parseCafe24DateTime(
-                response.getRefreshTokenExpiresAt()
+        token.setRefreshTokenExpiresAt(
+                parseCafe24DateTime(
+                        response.getRefreshTokenExpiresAt()
+                )
         );
 
         token.setUpdatedAt(
