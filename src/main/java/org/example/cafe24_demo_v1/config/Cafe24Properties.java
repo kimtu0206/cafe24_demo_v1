@@ -18,4 +18,8 @@ public class Cafe24Properties {
     private String mallId;
 
     private String redirectUri;
+
+    private String scope;
+
+    private String state;
 }

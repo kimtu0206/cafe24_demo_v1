@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
-import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
@@ -57,7 +56,7 @@ public class OAuthController {
 
     @GetMapping("/oauth/login")
     public void login(HttpServletResponse response, HttpSession session) throws IOException {
-        String state = UUID.randomUUID().toString();
+        String state = cafe24Properties.getState();
 
         session.setAttribute(
                 "cafe24_oauth_state",
@@ -87,7 +86,7 @@ public class OAuthController {
                 )
                 .queryParam(
                         "scope",
-                        "mall.read_application"
+                        cafe24Properties.getScope()
                 )
                 .build()
                 .encode()

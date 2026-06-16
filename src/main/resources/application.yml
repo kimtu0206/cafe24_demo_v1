@@ -3,6 +3,12 @@ cafe24:
   client-secret: ${CAFE24_CLIENT_SECRET}
   mall-id: ${CAFE24_MALL_ID}
   redirect-uri: ${CAFE24_REDIRECT_URI}
+  scope: >-
+    mall.read_application,mall.write_application,
+    mall.read_category,mall.write_category,
+    mall.read_product,mall.write_product,
+    mall.read_order,mall.write_order
+  state: cafe24-demo-state
   webhook:
     api-key: ${CAFE24_WEBHOOK_API_KEY}
 
