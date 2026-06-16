@@ -9,12 +9,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 
 @Service
 @RequiredArgsConstructor
 public class Cafe24TokenService {
 
-    private final Cafe24TokenRepository repository;
+    private final Cafe24TokenRepository tokenRepository;
+    private final Cafe24OAuthService oauthService;
     private final Cafe24Properties cafe24Properties;
 
     @Transactional
@@ -24,10 +27,18 @@ public class Cafe24TokenService {
     ) {
 
         Cafe24Token token =
-                repository.findByMallId(mallId)
+                tokenRepository
+                        .findByMallIdAndClientId(
+                                mallId,
+                                cafe24Properties.getClientId()
+                        )
                         .orElse(new Cafe24Token());
 
         token.setMallId(mallId);
+
+        token.setClientId(
+                cafe24Properties.getClientId()
+        );
 
         token.setAccessToken(
                 response.getAccessToken()
@@ -41,10 +52,14 @@ public class Cafe24TokenService {
                 response.getTokenType()
         );
 
-        token.setExpiresAt(
-                LocalDateTime.parse(
+        token.setAccessTokenExpiresAt(
+                parseCafe24DateTime(
                         response.getExpiresAt()
                 )
+        );
+
+        parseCafe24DateTime(
+                response.getRefreshTokenExpiresAt()
         );
 
         token.setUpdatedAt(
@@ -57,6 +72,44 @@ public class Cafe24TokenService {
             );
         }
 
-        repository.save(token);
+        tokenRepository.save(token);
+    }
+
+    @Transactional
+    public void refreshToken(String mallId) {
+
+        Cafe24Token token =
+                tokenRepository
+                        .findByMallIdAndClientId(
+                                mallId,
+                                cafe24Properties.getClientId()
+                        )
+                        .orElseThrow();
+
+        Cafe24TokenResponse refreshed =
+                oauthService.refreshAccessToken(
+                        token.getRefreshToken()
+                );
+
+        saveToken(
+                mallId,
+                refreshed
+        );
+    }
+
+    private LocalDateTime parseCafe24DateTime(
+            String value
+    ) {
+
+        try {
+
+            return LocalDateTime.parse(value);
+
+        } catch (DateTimeParseException e) {
+
+            return OffsetDateTime
+                    .parse(value)
+                    .toLocalDateTime();
+        }
     }
 }

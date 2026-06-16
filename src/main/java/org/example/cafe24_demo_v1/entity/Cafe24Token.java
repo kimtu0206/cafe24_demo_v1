@@ -18,6 +18,8 @@ public class Cafe24Token {
 
     private String mallId;
 
+    private String clientId;
+
     @Column(length = 1000)
     private String accessToken;
 
@@ -28,7 +30,9 @@ public class Cafe24Token {
 
     private Integer expiresIn;
 
-    private LocalDateTime expiresAt;
+    private LocalDateTime accessTokenExpiresAt;
+
+    private LocalDateTime refreshTokenExpiresAt;
 
     private LocalDateTime createdAt;
 

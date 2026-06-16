@@ -2,6 +2,7 @@ package org.example.cafe24_demo_v1.service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.cafe24_demo_v1.config.Cafe24Properties;
+import org.example.cafe24_demo_v1.dto.Cafe24TokenResponse;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -58,16 +59,66 @@ public class Cafe24OAuthService {
                             String.class
                     );
 
-            System.out.println("SUCCESS = " + response.getBody());
+            return response.getBody();
+
+        } catch (HttpClientErrorException e) {
+
+            throw new IllegalStateException(
+                    "Cafe24 token request failed. status="
+                            + e.getStatusCode(),
+                    e
+            );
+        }
+    }
+
+    public Cafe24TokenResponse refreshAccessToken(
+            String refreshToken
+    ) {
+
+        String tokenUrl =
+                "https://" + cafe24Properties.getMallId()
+                        + ".cafe24api.com/api/v2/oauth/token";
+
+        RestTemplate restTemplate = new RestTemplate();
+
+        MultiValueMap<String, String> body =
+                new LinkedMultiValueMap<>();
+
+        body.add("grant_type", "refresh_token");
+        body.add("refresh_token", refreshToken);
+
+        HttpHeaders headers = new HttpHeaders();
+
+        headers.setContentType(
+                MediaType.APPLICATION_FORM_URLENCODED
+        );
+
+        headers.setBasicAuth(
+                cafe24Properties.getClientId(),
+                cafe24Properties.getClientSecret()
+        );
+
+        HttpEntity<MultiValueMap<String, String>> request =
+                new HttpEntity<>(body, headers);
+
+        try {
+
+            ResponseEntity<Cafe24TokenResponse> response =
+                    restTemplate.postForEntity(
+                            tokenUrl,
+                            request,
+                            Cafe24TokenResponse.class
+                    );
 
             return response.getBody();
 
         } catch (HttpClientErrorException e) {
 
-            System.out.println("STATUS = " + e.getStatusCode());
-            System.out.println("BODY = " + e.getResponseBodyAsString());
-
-            return e.getResponseBodyAsString();
+            throw new IllegalStateException(
+                    "Cafe24 refresh token request failed. status="
+                            + e.getStatusCode(),
+                    e
+            );
         }
     }
 }
