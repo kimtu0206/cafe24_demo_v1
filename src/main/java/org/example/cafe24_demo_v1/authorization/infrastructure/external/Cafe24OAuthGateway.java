@@ -31,9 +31,9 @@ public class Cafe24OAuthGateway implements Cafe24OAuthPort {
     private final Cafe24Properties properties;
     private final RestTemplate restTemplate;
 
-    public Cafe24OAuthGateway(Cafe24Properties properties) {
+    public Cafe24OAuthGateway(Cafe24Properties properties, RestTemplate restTemplate) {
         this.properties = properties;
-        this.restTemplate = new RestTemplate();
+        this.restTemplate = restTemplate;
     }
 
     /**

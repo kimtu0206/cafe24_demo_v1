@@ -1,7 +1,6 @@
 package org.example.cafe24_demo_v1.webhook.presentation;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.webhook.domain.event.AppUninstalledEvent;
@@ -33,7 +32,6 @@ public class WebhookController {
 
     private final Cafe24WebhookVerifier verifier;
     private final ApplicationEventPublisher eventPublisher;
-    private final ObjectMapper objectMapper;
 
     /**
      * Cafe24 Webhook 수신 엔드포인트.
@@ -42,24 +40,24 @@ public class WebhookController {
      */
     @PostMapping("/cafe24")
     public ResponseEntity<Void> receive(
-            @RequestBody String body,
-            @RequestHeader Map<String, String> headers) {
+            @RequestHeader Map<String, String> headers,
+            @RequestBody WebhookPayload payload) {
 
-        // 1. 요청 헤더의 서명값으로 Cafe24에서 보낸 요청인지 검증
-        String hmac = headers.getOrDefault("x-cafe24-signature", "");
-        if (!verifier.verify(hmac)) {
+        // 1. x-api-key 헤더로 Cafe24에서 보낸 요청인지 검증
+        String apiKey = headers.getOrDefault("x-api-key", "");
+        if (!verifier.verify(apiKey)) {
             log.warn("Webhook signature verification failed");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        try {
-            WebhookPayload payload = objectMapper.readValue(body, WebhookPayload.class);
-            log.info("Webhook received: eventNo={}", payload.eventNo());
-            handleEvent(payload);
-        } catch (Exception e) {
-            log.error("Failed to parse webhook payload", e);
-            // 파싱 실패해도 200 반환 — Cafe24 재전송을 막기 위해
+        // 2. 필수값 검증
+        if (payload.eventNo() == null || payload.resource() == null) {
+            log.warn("Webhook payload missing required fields: eventNo={}, resource={}", payload.eventNo(), payload.resource());
+            return ResponseEntity.badRequest().build();
         }
+
+        log.info("Webhook received: eventNo={}", payload.eventNo());
+        handleEvent(payload);
 
         return ResponseEntity.ok().build();
     }
@@ -68,7 +66,7 @@ public class WebhookController {
     private void handleEvent(WebhookPayload payload) {
         if (payload.eventNo() == EVENT_APP_UNINSTALLED && payload.resource() != null) {
             eventPublisher.publishEvent(
-                    new AppUninstalledEvent(payload.resource().mallId(), payload.resource().clientId())
+                    new AppUninstalledEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().clientId())
             );
         }
     }

@@ -10,16 +10,19 @@ import java.time.LocalDateTime;
  */
 public class AppUninstalledEvent {
 
-    private final String mallId;        // 앱이 삭제된 쇼핑몰 ID
-    private final String clientId;      // 삭제된 앱의 클라이언트 ID
-    private final LocalDateTime occurredAt; // 이벤트 발생 시각
+    private final Integer eventNo;       // Cafe24 이벤트 번호 (중복 수신 판단에 사용)
+    private final String mallId;         // 앱이 삭제된 쇼핑몰 ID
+    private final String clientId;       // 삭제된 앱의 클라이언트 ID
+    private final LocalDateTime occurredAt;
 
-    public AppUninstalledEvent(String mallId, String clientId) {
+    public AppUninstalledEvent(Integer eventNo, String mallId, String clientId) {
+        this.eventNo = eventNo;
         this.mallId = mallId;
         this.clientId = clientId;
         this.occurredAt = LocalDateTime.now();
     }
 
+    public Integer getEventNo() { return eventNo; }
     public String getMallId() { return mallId; }
     public String getClientId() { return clientId; }
     public LocalDateTime getOccurredAt() { return occurredAt; }

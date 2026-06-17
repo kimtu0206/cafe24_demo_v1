@@ -5,8 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.authorization.application.command.RevokeAuthorizationCommand;
 import org.example.cafe24_demo_v1.authorization.application.service.AppAuthorizationService;
 import org.example.cafe24_demo_v1.webhook.domain.event.AppUninstalledEvent;
+import org.example.cafe24_demo_v1.webhook.infrastructure.persistence.WebhookEventRepository;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Webhook 도메인 이벤트를 구독해 처리하는 애플리케이션 서비스.
@@ -21,13 +23,25 @@ import org.springframework.stereotype.Service;
 public class WebhookEventService {
 
     private final AppAuthorizationService authorizationService;
+    private final WebhookEventRepository webhookEventRepository;
 
     /**
      * 앱 삭제 이벤트 처리기.
-     * 해당 쇼핑몰의 인가를 REVOKED 상태로 변경한다.
+     * eventNo + mallId 조합으로 중복 수신을 확인한 뒤, 최초 수신 시에만 인가를 REVOKED로 변경한다.
+     * Cafe24는 네트워크 상황에 따라 동일 이벤트를 여러 번 전송할 수 있다.
      */
+    @Transactional
     @EventListener
     public void onAppUninstalled(AppUninstalledEvent event) {
+        // 이미 처리한 이벤트면 무시 (멱등성 보장)
+        if (webhookEventRepository.existsByEventNoAndMallId(event.getEventNo(), event.getMallId())) {
+            log.info("Duplicate webhook ignored: eventNo={}, mallId={}", event.getEventNo(), event.getMallId());
+            return;
+        }
+
+        // 이력 저장 (이후 중복 수신 시 위 조건에서 걸림)
+        webhookEventRepository.save(event.getEventNo(), event.getMallId());
+
         log.info("App uninstalled: mallId={}, clientId={}", event.getMallId(), event.getClientId());
         authorizationService.revoke(new RevokeAuthorizationCommand(event.getMallId()));
     }
