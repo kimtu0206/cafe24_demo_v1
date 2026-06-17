@@ -69,3 +69,22 @@ Webhook 수신 → WebhookController가 AppUninstalledEvent 발행
 - 코드 변경 시: 관련 테스트 작성 → 기존 테스트 실행 → 결과 보고.
 - 한 번에 5개 이상 파일을 수정해야 하면 먼저 변경 계획을 설명하고 승인을 받는다.
 - `git reset --hard`, `git clean -fd` 실행 금지. 승인 없이 커밋 금지.
+
+## Package Rules
+
+새로운 기능 추가 시 기존 패키지 구조를 따른다.
+
+presentation
+application
+domain
+infrastructure
+
+위 4계층 외 새로운 최상위 패키지를 생성하지 않는다.
+
+## Tech Stack
+
+- Java 21
+- Spring Boot 3.5.x
+- Spring Data JPA
+- MySQL 8
+- Gradle
