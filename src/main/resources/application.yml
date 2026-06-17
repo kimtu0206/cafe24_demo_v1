@@ -7,7 +7,7 @@ cafe24:
     mall.read_application,mall.write_application,mall.read_category,mall.read_product,mall.write_product,mall.read_collection,mall.read_supply,mall.read_order,mall.read_customer,mall.read_promotion,mall.read_shipping
   state: cafe24-demo-state
   webhook:
-    api-key: ${CAFE24_WEBHOOK_API_KEY}
+    api-key: ${CAFE24_WEBHOOK_API_KEY:}
     callback-url: ${CAFE24_WEBHOOK_CALLBACK_URL}
 
 spring:

@@ -1,4 +1,4 @@
-package org.example.cafe24_demo_v1.config;
+package org.example.cafe24_demo_v1.shared.config;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -12,17 +12,11 @@ import org.springframework.stereotype.Component;
 public class Cafe24Properties {
 
     private String clientId;
-
     private String clientSecret;
-
     private String mallId;
-
     private String redirectUri;
-
     private String scope;
-
     private String state;
-
     private Webhook webhook = new Webhook();
 
     @Getter
