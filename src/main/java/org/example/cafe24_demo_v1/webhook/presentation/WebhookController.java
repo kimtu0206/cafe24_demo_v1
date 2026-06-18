@@ -31,7 +31,7 @@ import java.util.Objects;
 public class WebhookController {
 
     // Cafe24 앱 삭제 이벤트 번호 (Cafe24 공식 문서 기준)
-    private static final int EVENT_APP_UNINSTALLED = 90001;
+    private static final int EVENT_APP_UNINSTALLED = 10;
 
     private final Cafe24WebhookVerifier verifier;
     private final ApplicationEventPublisher eventPublisher;
