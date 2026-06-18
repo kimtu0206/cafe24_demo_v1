@@ -38,4 +38,9 @@ public class ProductRepositoryAdapter implements ProductRepository {
         ProductEntity saved = jpaRepository.save(entity);
         product.setId(saved.getId());
     }
+
+    @Override
+    public void deleteByProductNo(Long productNo) {
+        jpaRepository.deleteByProductNo(productNo);
+    }
 }

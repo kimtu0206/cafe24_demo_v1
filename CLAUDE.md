@@ -18,7 +18,9 @@ Cafe24 OAuth 인가(authorization) 흐름과 Webhook 수신을 구현한 Spring 
 
 `src/test`에는 아직 테스트가 하나도 없다 — 신규 기능을 추가할 때 테스트를 새로 작성해야 한다.
 
-실행 전 다음 환경변수가 필요하다(`src/main/resources/application.yml`, `README.md` 참고): `CAFE24_CLIENT_ID`, `CAFE24_CLIENT_SECRET`, `CAFE24_MALL_ID`, `CAFE24_REDIRECT_URI`, `CAFE24_WEBHOOK_API_KEY`(로컬 개발 시 생략 가능), `CAFE24_WEBHOOK_CALLBACK_URL`, `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`.
+실행 전 다음 환경변수가 필요하다(`src/main/resources/application.yml`, `README.md` 참고): `CAFE24_CLIENT_ID`, `CAFE24_CLIENT_SECRET`, `CAFE24_MALL_ID`, `CAFE24_REDIRECT_URI`, `CAFE24_WEBHOOK_API_KEY`(로컬 개발 시 생략 가능), `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`.
+
+Webhook 수신 URL은 기능별로 분리되어 있다(`/webhook/cafe24/app-uninstalled`, `/webhook/cafe24/products/created`, `/webhook/cafe24/products/updated`, `/webhook/cafe24/products/deleted`). Cafe24 개발자센터에 각 URL을 해당 이벤트 전용으로 등록한다 — 단일 콜백 URL 환경변수는 없다.
 
 ## Architecture
 

@@ -28,4 +28,17 @@ public interface Cafe24ProductPort {
 
     /** offset/limit 페이지네이션으로 Cafe24 상품 목록 한 페이지를 조회한다. */
     List<Product> getProducts(String mallId, int offset, int limit, TokenCredential credential);
+
+    /** 기존 상품을 Cafe24에서 수정하고, 수정 결과를 도메인 모델로 반환한다. */
+    Product updateProduct(
+            String mallId,
+            Long productNo,
+            String productName,
+            BigDecimal price,
+            BigDecimal supplyPrice,
+            TokenCredential credential
+    );
+
+    /** 상품을 Cafe24에서 삭제한다. */
+    void deleteProduct(String mallId, Long productNo, TokenCredential credential);
 }

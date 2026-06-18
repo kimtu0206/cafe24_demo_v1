@@ -9,8 +9,6 @@ cafe24:
   api-version: ${CAFE24_API_VERSION}
   webhook:
     api-key: ${CAFE24_WEBHOOK_API_KEY:}
-    callback-url: ${CAFE24_WEBHOOK_CALLBACK_URL}
-    product-created-event-no: ${CAFE24_WEBHOOK_PRODUCT_EVENT_NO}
 
 spring:
   datasource:
@@ -22,6 +20,8 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+#      ddl-auto: update 개발용 (엔티티 수정하면 DB 수정 안 해도 됨 *컬럼 추가만 하지 삭제는 안함)
+#      ddl-auto: validate 운영용 (DB 변경 안 함 엔티티와 DB 구조만 비교)
 
     properties:
       hibernate:

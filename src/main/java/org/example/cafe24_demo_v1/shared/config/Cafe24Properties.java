@@ -24,7 +24,5 @@ public class Cafe24Properties {
     @Setter
     public static class Webhook {
         private String apiKey;
-        private String callbackUrl;
-        private Integer productCreatedEventNo;
     }
 }

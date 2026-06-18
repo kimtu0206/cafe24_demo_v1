@@ -4,6 +4,8 @@ import org.example.cafe24_demo_v1.authorization.application.service.AppAuthoriza
 import org.example.cafe24_demo_v1.product.application.service.ProductService;
 import org.example.cafe24_demo_v1.webhook.domain.event.AppUninstalledEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductCreatedEvent;
+import org.example.cafe24_demo_v1.webhook.domain.event.ProductDeletedEvent;
+import org.example.cafe24_demo_v1.webhook.domain.event.ProductUpdatedEvent;
 import org.example.cafe24_demo_v1.webhook.infrastructure.persistence.WebhookEventRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -65,5 +67,43 @@ class WebhookEventServiceTest {
         webhookEventService.onAppUninstalled(new AppUninstalledEvent(10, "mymall", "client-id"));
 
         verify(authorizationService).revoke(ArgumentMatchers.any());
+    }
+
+    @Test
+    void 상품_수정_이벤트는_Cafe24에서_상세를_다시_조회해_저장한다() {
+        given(webhookEventRepository.exists(90072, "mymall", "1")).willReturn(false);
+
+        webhookEventService.onProductUpdated(new ProductUpdatedEvent(90072, "mymall", 1L));
+
+        verify(webhookEventRepository).save(90072, "mymall", "1");
+        verify(productService).upsertFromWebhook("mymall", 1L);
+    }
+
+    @Test
+    void 이미_처리한_상품_수정_이벤트는_무시한다() {
+        given(webhookEventRepository.exists(90072, "mymall", "1")).willReturn(true);
+
+        webhookEventService.onProductUpdated(new ProductUpdatedEvent(90072, "mymall", 1L));
+
+        verify(productService, never()).upsertFromWebhook(ArgumentMatchers.any(), ArgumentMatchers.any());
+    }
+
+    @Test
+    void 상품_삭제_이벤트는_로컬DB에서만_삭제한다() {
+        given(webhookEventRepository.exists(90073, "mymall", "1")).willReturn(false);
+
+        webhookEventService.onProductDeleted(new ProductDeletedEvent(90073, "mymall", 1L));
+
+        verify(webhookEventRepository).save(90073, "mymall", "1");
+        verify(productService).deleteFromWebhook(1L);
+    }
+
+    @Test
+    void 이미_처리한_상품_삭제_이벤트는_무시한다() {
+        given(webhookEventRepository.exists(90073, "mymall", "1")).willReturn(true);
+
+        webhookEventService.onProductDeleted(new ProductDeletedEvent(90073, "mymall", 1L));
+
+        verify(productService, never()).deleteFromWebhook(ArgumentMatchers.any());
     }
 }

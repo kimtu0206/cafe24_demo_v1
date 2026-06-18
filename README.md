@@ -26,7 +26,6 @@ Cafe24 OAuth 인가 흐름을 구현한 Spring Boot 프로젝트입니다.
 | `CAFE24_MALL_ID` | 연동할 쇼핑몰 ID |
 | `CAFE24_REDIRECT_URI` | OAuth 콜백 URI |
 | `CAFE24_WEBHOOK_API_KEY` | Webhook 서명 검증 키 (로컬 개발 시 생략 가능) |
-| `CAFE24_WEBHOOK_CALLBACK_URL` | Webhook 수신 URL |
 | `DB_URL` | MySQL 접속 URL |
 | `DB_USERNAME` | DB 사용자명 |
 | `DB_PASSWORD` | DB 비밀번호 |
@@ -40,7 +39,10 @@ Cafe24 OAuth 인가 흐름을 구현한 Spring Boot 프로젝트입니다.
 | `GET` | `/oauth/login` | OAuth 로그인 시작 (Cafe24 인가 서버로 리다이렉트) |
 | `GET` | `/oauth/callback` | OAuth 콜백 수신 및 토큰 저장 |
 | `POST` | `/oauth/refresh` | 액세스 토큰 수동 갱신 |
-| `POST` | `/webhook/cafe24` | Cafe24 Webhook 수신 |
+| `POST` | `/webhook/cafe24/app-uninstalled` | Cafe24 앱 삭제 Webhook 수신 |
+| `POST` | `/webhook/cafe24/products/created` | Cafe24 상품 생성 Webhook 수신 |
+| `POST` | `/webhook/cafe24/products/updated` | Cafe24 상품 수정 Webhook 수신 |
+| `POST` | `/webhook/cafe24/products/deleted` | Cafe24 상품 삭제 Webhook 수신 |
 
 ---
 
@@ -218,11 +220,19 @@ infrastructure/Cafe24OAuthGateway.java     ← 실제 HTTP 구현 (인프라 레
 
 ## Webhook 흐름
 
+Cafe24는 이벤트마다 다른 Webhook URL을 등록할 수 있어, 기능별로 엔드포인트를 분리했다.
+공통 검증(서명 확인, 필수값 확인)은 `AbstractCafe24WebhookController`가 담당한다.
+
 ```
-POST /webhook/cafe24
-   → x-cafe24-signature 헤더 검증
-   → event_no에 따라 도메인 이벤트 발행
-   → (앱 삭제 이벤트) AppAuthorization 상태를 REVOKED로 변경
+POST /webhook/cafe24/app-uninstalled
+   → x-api-key 헤더 검증
+   → AppUninstalledEvent 발행 → AppAuthorization 상태를 REVOKED로 변경
+
+POST /webhook/cafe24/products/created
+POST /webhook/cafe24/products/updated
+POST /webhook/cafe24/products/deleted
+   → x-api-key 헤더 검증
+   → ProductCreatedEvent / ProductUpdatedEvent / ProductDeletedEvent 발행 → 로컬 DB 반영
 ```
 
 ## 개인 메모

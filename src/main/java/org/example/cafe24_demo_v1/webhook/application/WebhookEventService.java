@@ -7,6 +7,8 @@ import org.example.cafe24_demo_v1.authorization.application.service.AppAuthoriza
 import org.example.cafe24_demo_v1.product.application.service.ProductService;
 import org.example.cafe24_demo_v1.webhook.domain.event.AppUninstalledEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductCreatedEvent;
+import org.example.cafe24_demo_v1.webhook.domain.event.ProductDeletedEvent;
+import org.example.cafe24_demo_v1.webhook.domain.event.ProductUpdatedEvent;
 import org.example.cafe24_demo_v1.webhook.infrastructure.persistence.WebhookEventRepository;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -69,5 +71,50 @@ public class WebhookEventService {
 
         log.info("Product created: mallId={}, productNo={}", event.getMallId(), event.getProductNo());
         productService.upsertFromWebhook(event.getMallId(), event.getProductNo());
+    }
+
+    /**
+     * 상품 수정 이벤트 처리기.
+     * eventNo + mallId + productNo 조합으로 중복 수신을 확인한 뒤,
+     * 최초 수신 시에만 Cafe24에서 상품 상세를 다시 조회해 로컬 DB에 반영한다(상품 생성과 동일한 처리).
+     */
+    @Transactional
+    @EventListener
+    public void onProductUpdated(ProductUpdatedEvent event) {
+        String resourceId = String.valueOf(event.getProductNo());
+
+        if (webhookEventRepository.exists(event.getEventNo(), event.getMallId(), resourceId)) {
+            log.info("Duplicate webhook ignored: eventNo={}, mallId={}, productNo={}",
+                    event.getEventNo(), event.getMallId(), event.getProductNo());
+            return;
+        }
+
+        webhookEventRepository.save(event.getEventNo(), event.getMallId(), resourceId);
+
+        log.info("Product updated: mallId={}, productNo={}", event.getMallId(), event.getProductNo());
+        productService.upsertFromWebhook(event.getMallId(), event.getProductNo());
+    }
+
+    /**
+     * 상품 삭제 이벤트 처리기.
+     * eventNo + mallId + productNo 조합으로 중복 수신을 확인한 뒤,
+     * 최초 수신 시에만 로컬 DB에서 상품을 삭제한다.
+     * Cafe24에는 이미 삭제된 상태이므로 다시 API를 호출하지 않는다.
+     */
+    @Transactional
+    @EventListener
+    public void onProductDeleted(ProductDeletedEvent event) {
+        String resourceId = String.valueOf(event.getProductNo());
+
+        if (webhookEventRepository.exists(event.getEventNo(), event.getMallId(), resourceId)) {
+            log.info("Duplicate webhook ignored: eventNo={}, mallId={}, productNo={}",
+                    event.getEventNo(), event.getMallId(), event.getProductNo());
+            return;
+        }
+
+        webhookEventRepository.save(event.getEventNo(), event.getMallId(), resourceId);
+
+        log.info("Product deleted: mallId={}, productNo={}", event.getMallId(), event.getProductNo());
+        productService.deleteFromWebhook(event.getProductNo());
     }
 }

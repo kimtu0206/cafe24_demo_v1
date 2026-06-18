@@ -10,4 +10,6 @@ import java.util.Optional;
 interface ProductJpaRepository extends JpaRepository<ProductEntity, Long> {
 
     Optional<ProductEntity> findByProductNo(Long productNo);
+
+    void deleteByProductNo(Long productNo);
 }

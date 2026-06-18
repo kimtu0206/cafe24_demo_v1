@@ -64,6 +64,29 @@ public class Cafe24ProductClient implements Cafe24ProductPort {
     }
 
     @Override
+    public Product updateProduct(String mallId, Long productNo, String productName, BigDecimal price, BigDecimal supplyPrice, TokenCredential credential) {
+        String url = baseUrl(mallId) + "/products/" + productNo;
+        ProductUpdateRequest body = new ProductUpdateRequest(productName, price, supplyPrice);
+
+        ProductCreateResponse response = exchange(
+                url, HttpMethod.PUT, new HttpEntity<>(body, headers(credential)), ProductCreateResponse.class
+        );
+
+        log.info("Product updated: mallId={}, productNo={}", mallId, productNo);
+        return toDomain(mallId, response.getProduct());
+    }
+
+    @Override
+    public void deleteProduct(String mallId, Long productNo, TokenCredential credential) {
+        String url = UriComponentsBuilder.fromUriString(baseUrl(mallId) + "/products/" + productNo)
+                .queryParam("shop_no", 1)
+                .toUriString();
+
+        exchange(url, HttpMethod.DELETE, new HttpEntity<>(headers(credential)), Void.class);
+        log.info("Product deleted: mallId={}, productNo={}", mallId, productNo);
+    }
+
+    @Override
     public List<Product> getProducts(String mallId, int offset, int limit, TokenCredential credential) {
         String url = UriComponentsBuilder.fromUriString(baseUrl(mallId) + "/products")
                 .queryParam("offset", offset)

@@ -5,6 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.authorization.application.service.AppAuthorizationService;
 import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
 import org.example.cafe24_demo_v1.product.application.command.CreateProductCommand;
+import org.example.cafe24_demo_v1.product.application.command.DeleteProductCommand;
+import org.example.cafe24_demo_v1.product.application.command.UpdateProductCommand;
 import org.example.cafe24_demo_v1.product.domain.model.Product;
 import org.example.cafe24_demo_v1.product.domain.repository.ProductRepository;
 import org.example.cafe24_demo_v1.product.domain.service.Cafe24ProductPort;
@@ -43,8 +45,30 @@ public class ProductService {
         return product;
     }
 
+    /** Cafe24에서 기존 상품을 수정하고, 수정 결과를 로컬 DB에 반영한다(Upsert). */
+    @Transactional
+    public Product update(UpdateProductCommand command) {
+        TokenCredential credential = authorizationService.getValidCredential(command.mallId());
+
+        Product updated = cafe24ProductPort.updateProduct(
+                command.mallId(), command.productNo(), command.productName(), command.price(), command.supplyPrice(), credential
+        );
+
+        upsert(updated);
+        return updated;
+    }
+
+    /** Cafe24에서 상품을 삭제하고, 로컬 DB에서도 동일 상품을 삭제한다. */
+    @Transactional
+    public void delete(DeleteProductCommand command) {
+        TokenCredential credential = authorizationService.getValidCredential(command.mallId());
+
+        cafe24ProductPort.deleteProduct(command.mallId(), command.productNo(), credential);
+        repository.deleteByProductNo(command.productNo());
+    }
+
     /**
-     * Webhook으로 상품 생성 알림을 받았을 때 호출한다.
+     * Webhook으로 상품 생성/수정 알림을 받았을 때 호출한다.
      * Cafe24 Webhook 알림에는 product_no만 담겨 있으므로 상세 정보를 다시 조회해 로컬 DB에 반영한다.
      */
     @Transactional
@@ -52,6 +76,15 @@ public class ProductService {
         TokenCredential credential = authorizationService.getValidCredential(mallId);
         Product snapshot = cafe24ProductPort.getProduct(mallId, productNo, credential);
         upsert(snapshot);
+    }
+
+    /**
+     * Webhook으로 상품 삭제 알림을 받았을 때 호출한다.
+     * Cafe24에는 이미 삭제된 상태이므로 API를 다시 호출하지 않고 로컬 DB에서만 제거한다.
+     */
+    @Transactional
+    public void deleteFromWebhook(Long productNo) {
+        repository.deleteByProductNo(productNo);
     }
 
     /**

@@ -3,6 +3,8 @@ package org.example.cafe24_demo_v1.product.application.service;
 import org.example.cafe24_demo_v1.authorization.application.service.AppAuthorizationService;
 import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
 import org.example.cafe24_demo_v1.product.application.command.CreateProductCommand;
+import org.example.cafe24_demo_v1.product.application.command.DeleteProductCommand;
+import org.example.cafe24_demo_v1.product.application.command.UpdateProductCommand;
 import org.example.cafe24_demo_v1.product.domain.model.Product;
 import org.example.cafe24_demo_v1.product.domain.model.ProductStatus;
 import org.example.cafe24_demo_v1.product.domain.repository.ProductRepository;
@@ -22,6 +24,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -54,6 +57,45 @@ class ProductServiceTest {
 
         assertThat(result.getProductNo()).isEqualTo(1L);
         verify(repository).save(created);
+    }
+
+    @Test
+    void update은_Cafe24에서_수정하고_로컬DB에_반영한다() {
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        Product updated = Product.register("mymall", 1L, "수정된 상품", new BigDecimal("2000"), new BigDecimal("900"), ProductStatus.ON_SALE);
+        given(cafe24ProductPort.updateProduct("mymall", 1L, "수정된 상품", new BigDecimal("2000"), new BigDecimal("900"), credential))
+                .willReturn(updated);
+
+        Product existing = Product.reconstitute(
+                10L, 1L, "mymall", "기존 상품", new BigDecimal("1000"), new BigDecimal("500"),
+                ProductStatus.ON_SALE, LocalDateTime.now(), LocalDateTime.now()
+        );
+        given(repository.findByProductNo(1L)).willReturn(Optional.of(existing));
+
+        Product result = productService.update(new UpdateProductCommand("mymall", 1L, "수정된 상품", new BigDecimal("2000"), new BigDecimal("900")));
+
+        assertThat(result.getProductName()).isEqualTo("수정된 상품");
+        assertThat(existing.getProductName()).isEqualTo("수정된 상품");
+        assertThat(existing.getPrice()).isEqualTo(new BigDecimal("2000"));
+        verify(repository).save(existing);
+    }
+
+    @Test
+    void delete는_Cafe24에서_삭제하고_로컬DB에서도_삭제한다() {
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+
+        productService.delete(new DeleteProductCommand("mymall", 1L));
+
+        verify(cafe24ProductPort).deleteProduct("mymall", 1L, credential);
+        verify(repository).deleteByProductNo(1L);
+    }
+
+    @Test
+    void deleteFromWebhook은_Cafe24를_호출하지_않고_로컬DB에서만_삭제한다() {
+        productService.deleteFromWebhook(1L);
+
+        verify(repository).deleteByProductNo(1L);
+        verify(cafe24ProductPort, never()).deleteProduct(any(), any(), any());
     }
 
     @Test
