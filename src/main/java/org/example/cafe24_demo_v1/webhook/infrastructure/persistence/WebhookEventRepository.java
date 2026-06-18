@@ -13,16 +13,24 @@ public class WebhookEventRepository {
 
     private final WebhookEventJpaRepository jpaRepository;
 
-    /** eventNo + mallId 조합이 이미 처리된 이벤트인지 확인한다. */
-    public boolean existsByEventNoAndMallId(Integer eventNo, String mallId) {
-        return jpaRepository.existsByEventNoAndMallId(eventNo, mallId);
+    /**
+     * eventNo + mallId + resourceId 조합이 이미 처리된 이벤트인지 확인한다.
+     * resourceId는 리소스(예: 상품)가 없는 이벤트라면 null을 넘기면 된다.
+     */
+    public boolean exists(Integer eventNo, String mallId, String resourceId) {
+        return jpaRepository.existsByEventNoAndMallIdAndResourceId(eventNo, mallId, normalize(resourceId));
     }
 
     /** 수신한 이벤트를 이력에 저장한다. */
-    public void save(Integer eventNo, String mallId) {
+    public void save(Integer eventNo, String mallId, String resourceId) {
         WebhookEventEntity entity = new WebhookEventEntity();
         entity.setEventNo(eventNo);
         entity.setMallId(mallId);
+        entity.setResourceId(normalize(resourceId));
         jpaRepository.save(entity);
+    }
+
+    private String normalize(String resourceId) {
+        return resourceId == null ? "" : resourceId;
     }
 }

@@ -85,4 +85,25 @@ public class AppAuthorizationService {
             repository.save(authorization);
         });
     }
+
+    /**
+     * 다른 컨텍스트(예: product)가 Cafe24 API를 호출할 때 사용할 유효한 토큰을 반환한다.
+     * 액세스 토큰이 만료됐지만 갱신 가능하면 자동으로 refresh 후 반환한다.
+     * 인가가 없거나 리프레시 토큰까지 만료된 경우 예외를 던진다.
+     */
+    @Transactional
+    public TokenCredential getValidCredential(String mallId) {
+        AuthorizationId authorizationId = new AuthorizationId(mallId, cafe24Properties.getClientId());
+
+        AppAuthorization authorization = repository.findById(authorizationId)
+                .orElseThrow(() -> new IllegalStateException("Authorization not found: " + authorizationId));
+
+        if (authorization.needsRefresh()) {
+            TokenCredential refreshed = oAuthPort.refreshToken(authorization.getCredential().getRefreshToken());
+            authorization.refresh(refreshed);
+            repository.save(authorization);
+        }
+
+        return authorization.getValidCredential();
+    }
 }

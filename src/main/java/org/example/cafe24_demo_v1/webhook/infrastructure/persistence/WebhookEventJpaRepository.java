@@ -7,6 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
  */
 interface WebhookEventJpaRepository extends JpaRepository<WebhookEventEntity, Long> {
 
-    /** eventNo + mallId 조합으로 이미 처리된 이벤트인지 확인한다. */
-    boolean existsByEventNoAndMallId(Integer eventNo, String mallId);
+    /** eventNo + mallId + resourceId 조합으로 이미 처리된 이벤트인지 확인한다. */
+    boolean existsByEventNoAndMallIdAndResourceId(Integer eventNo, String mallId, String resourceId);
 }

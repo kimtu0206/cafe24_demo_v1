@@ -4,7 +4,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.authorization.application.command.RevokeAuthorizationCommand;
 import org.example.cafe24_demo_v1.authorization.application.service.AppAuthorizationService;
+import org.example.cafe24_demo_v1.product.application.service.ProductService;
 import org.example.cafe24_demo_v1.webhook.domain.event.AppUninstalledEvent;
+import org.example.cafe24_demo_v1.webhook.domain.event.ProductCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.infrastructure.persistence.WebhookEventRepository;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class WebhookEventService {
 
     private final AppAuthorizationService authorizationService;
+    private final ProductService productService;
     private final WebhookEventRepository webhookEventRepository;
 
     /**
@@ -34,15 +37,37 @@ public class WebhookEventService {
     @EventListener
     public void onAppUninstalled(AppUninstalledEvent event) {
         // 이미 처리한 이벤트면 무시 (멱등성 보장)
-        if (webhookEventRepository.existsByEventNoAndMallId(event.getEventNo(), event.getMallId())) {
+        if (webhookEventRepository.exists(event.getEventNo(), event.getMallId(), null)) {
             log.info("Duplicate webhook ignored: eventNo={}, mallId={}", event.getEventNo(), event.getMallId());
             return;
         }
 
         // 이력 저장 (이후 중복 수신 시 위 조건에서 걸림)
-        webhookEventRepository.save(event.getEventNo(), event.getMallId());
+        webhookEventRepository.save(event.getEventNo(), event.getMallId(), null);
 
         log.info("App uninstalled: mallId={}, clientId={}", event.getMallId(), event.getClientId());
         authorizationService.revoke(new RevokeAuthorizationCommand(event.getMallId()));
+    }
+
+    /**
+     * 상품 생성 이벤트 처리기.
+     * eventNo + mallId + productNo 조합으로 중복 수신을 확인한 뒤,
+     * 최초 수신 시에만 Cafe24에서 상품 상세를 다시 조회해 로컬 DB에 반영한다.
+     */
+    @Transactional
+    @EventListener
+    public void onProductCreated(ProductCreatedEvent event) {
+        String resourceId = String.valueOf(event.getProductNo());
+
+        if (webhookEventRepository.exists(event.getEventNo(), event.getMallId(), resourceId)) {
+            log.info("Duplicate webhook ignored: eventNo={}, mallId={}, productNo={}",
+                    event.getEventNo(), event.getMallId(), event.getProductNo());
+            return;
+        }
+
+        webhookEventRepository.save(event.getEventNo(), event.getMallId(), resourceId);
+
+        log.info("Product created: mallId={}, productNo={}", event.getMallId(), event.getProductNo());
+        productService.upsertFromWebhook(event.getMallId(), event.getProductNo());
     }
 }

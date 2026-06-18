@@ -17,6 +17,7 @@ public class Cafe24Properties {
     private String redirectUri;
     private String scope;
     private String state;
+    private String apiVersion;
     private Webhook webhook = new Webhook();
 
     @Getter
@@ -24,5 +25,6 @@ public class Cafe24Properties {
     public static class Webhook {
         private String apiKey;
         private String callbackUrl;
+        private Integer productCreatedEventNo;
     }
 }
