@@ -28,4 +28,24 @@ class Cafe24ProductPayload {
     private String display;
 
     private String selling;
+
+    private String description;
+
+    @JsonProperty("payment_info")
+    private String paymentInfo;
+
+    @JsonProperty("shipping_info")
+    private String shippingInfo;
+
+    @JsonProperty("exchange_info")
+    private String exchangeInfo;
+
+    @JsonProperty("price_excluding_tax")
+    private BigDecimal priceExcludingTax;
+
+    @JsonProperty("detail_image")
+    private String detailImage;
+
+    @JsonProperty("image_upload_type")
+    private String imageUploadType;
 }

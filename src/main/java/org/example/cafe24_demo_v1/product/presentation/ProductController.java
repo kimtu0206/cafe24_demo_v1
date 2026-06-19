@@ -37,7 +37,11 @@ public class ProductController {
     @PostMapping
     public ResponseEntity<ProductResponse> register(@Valid @RequestBody ProductRegisterRequest request) {
         Product product = productService.register(
-                new CreateProductCommand(cafe24Properties.getMallId(), request.productName(), request.price(), request.supplyPrice())
+                new CreateProductCommand(
+                        cafe24Properties.getMallId(), request.productName(), request.price(), request.supplyPrice(),
+                        request.description(), request.paymentInfo(), request.shippingInfo(), request.exchangeInfo(),
+                        request.priceExcludingTax(), request.detailImage(), request.imageUploadType()
+                )
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(ProductResponse.from(product));
     }
@@ -45,7 +49,11 @@ public class ProductController {
     @PutMapping("/{productNo}")
     public ResponseEntity<ProductResponse> update(@PathVariable Long productNo, @Valid @RequestBody ProductUpdateRequest request) {
         Product product = productService.update(
-                new UpdateProductCommand(cafe24Properties.getMallId(), productNo, request.productName(), request.price(), request.supplyPrice())
+                new UpdateProductCommand(
+                        cafe24Properties.getMallId(), productNo, request.productName(), request.price(), request.supplyPrice(),
+                        request.description(), request.paymentInfo(), request.shippingInfo(), request.exchangeInfo(),
+                        request.priceExcludingTax(), request.detailImage(), request.imageUploadType()
+                )
         );
         return ResponseEntity.ok(ProductResponse.from(product));
     }
@@ -66,18 +74,48 @@ public class ProductController {
     private record ProductRegisterRequest(
             @NotBlank String productName,
             @NotNull @PositiveOrZero BigDecimal price,
-            @NotNull @PositiveOrZero BigDecimal supplyPrice
+            @NotNull @PositiveOrZero BigDecimal supplyPrice,
+            String description,
+            String paymentInfo,
+            String shippingInfo,
+            String exchangeInfo,
+            @PositiveOrZero BigDecimal priceExcludingTax,
+            String detailImage,
+            String imageUploadType
     ) {}
 
     private record ProductUpdateRequest(
             @NotBlank String productName,
             @NotNull @PositiveOrZero BigDecimal price,
-            @NotNull @PositiveOrZero BigDecimal supplyPrice
+            @NotNull @PositiveOrZero BigDecimal supplyPrice,
+            String description,
+            String paymentInfo,
+            String shippingInfo,
+            String exchangeInfo,
+            @PositiveOrZero BigDecimal priceExcludingTax,
+            String detailImage,
+            String imageUploadType
     ) {}
 
-    private record ProductResponse(Long productNo, String productName, BigDecimal price, String status) {
+    private record ProductResponse(
+            Long productNo,
+            String productName,
+            BigDecimal price,
+            String status,
+            String description,
+            String paymentInfo,
+            String shippingInfo,
+            String exchangeInfo,
+            BigDecimal priceExcludingTax,
+            String detailImage,
+            String imageUploadType
+    ) {
         static ProductResponse from(Product product) {
-            return new ProductResponse(product.getProductNo(), product.getProductName(), product.getPrice(), product.getStatus().name());
+            return new ProductResponse(
+                    product.getProductNo(), product.getProductName(), product.getPrice(), product.getStatus().name(),
+                    product.getDescription(), product.getPaymentInfo(), product.getShippingInfo(), product.getExchangeInfo(),
+                    product.getPriceExcludingTax(), product.getDetailImage(), product.getImageUploadType()
+            );
         }
     }
 }

@@ -2,8 +2,8 @@ package org.example.cafe24_demo_v1.product.domain.service;
 
 import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
 import org.example.cafe24_demo_v1.product.domain.model.Product;
+import org.example.cafe24_demo_v1.product.domain.model.ProductRegistration;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -15,13 +15,7 @@ import java.util.List;
 public interface Cafe24ProductPort {
 
     /** 신규 상품을 Cafe24에 등록하고, 등록 결과를 도메인 모델로 반환한다. */
-    Product createProduct(
-            String mallId,
-            String productName,
-            BigDecimal price,
-            BigDecimal supplyPrice,
-            TokenCredential credential
-    );
+    Product createProduct(String mallId, ProductRegistration registration, TokenCredential credential);
 
     /** 상품 번호로 Cafe24에 등록된 상품 상세 정보를 조회한다. */
     Product getProduct(String mallId, Long productNo, TokenCredential credential);
@@ -30,14 +24,7 @@ public interface Cafe24ProductPort {
     List<Product> getProducts(String mallId, int offset, int limit, TokenCredential credential);
 
     /** 기존 상품을 Cafe24에서 수정하고, 수정 결과를 도메인 모델로 반환한다. */
-    Product updateProduct(
-            String mallId,
-            Long productNo,
-            String productName,
-            BigDecimal price,
-            BigDecimal supplyPrice,
-            TokenCredential credential
-    );
+    Product updateProduct(String mallId, Long productNo, ProductRegistration registration, TokenCredential credential);
 
     /** 상품을 Cafe24에서 삭제한다. */
     void deleteProduct(String mallId, Long productNo, TokenCredential credential);

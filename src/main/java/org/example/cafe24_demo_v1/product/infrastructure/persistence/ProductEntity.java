@@ -41,6 +41,27 @@ class ProductEntity {
 
     private String status; // ON_SALE / SUSPENDED
 
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @Column(name = "payment_info", columnDefinition = "TEXT")
+    private String paymentInfo;
+
+    @Column(name = "shipping_info", columnDefinition = "TEXT")
+    private String shippingInfo;
+
+    @Column(name = "exchange_info", columnDefinition = "TEXT")
+    private String exchangeInfo;
+
+    @Column(name = "price_excluding_tax")
+    private BigDecimal priceExcludingTax;
+
+    @Column(name = "detail_image")
+    private String detailImage;
+
+    @Column(name = "image_upload_type")
+    private String imageUploadType;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

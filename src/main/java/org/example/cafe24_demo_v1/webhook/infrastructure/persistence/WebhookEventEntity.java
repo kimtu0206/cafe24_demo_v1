@@ -28,6 +28,9 @@ class WebhookEventEntity {
     @Column(name = "event_no", nullable = false)
     private Integer eventNo;    // Cafe24 이벤트 번호
 
+    @Column(name = "event_type")
+    private String eventType;   // 이벤트 종류(WebhookEventType) — event_no를 사람이 읽을 수 있게 보조하는 값
+
     @Column(name = "mall_id", nullable = false)
     private String mallId;      // 이벤트가 발생한 쇼핑몰 ID
 

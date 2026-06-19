@@ -3,6 +3,7 @@ package org.example.cafe24_demo_v1.product.infrastructure.external;
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
 import org.example.cafe24_demo_v1.product.domain.model.Product;
+import org.example.cafe24_demo_v1.product.domain.model.ProductRegistration;
 import org.example.cafe24_demo_v1.product.domain.model.ProductStatus;
 import org.example.cafe24_demo_v1.product.domain.service.Cafe24ProductPort;
 import org.example.cafe24_demo_v1.shared.config.Cafe24Properties;
@@ -16,7 +17,6 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -40,9 +40,9 @@ public class Cafe24ProductClient implements Cafe24ProductPort {
     }
 
     @Override
-    public Product createProduct(String mallId, String productName, BigDecimal price, BigDecimal supplyPrice, TokenCredential credential) {
+    public Product createProduct(String mallId, ProductRegistration registration, TokenCredential credential) {
         String url = baseUrl(mallId) + "/products";
-        ProductCreateRequest body = new ProductCreateRequest(productName, price, supplyPrice);
+        ProductCreateRequest body = new ProductCreateRequest(registration);
 
         ProductCreateResponse response = exchange(
                 url, HttpMethod.POST, new HttpEntity<>(body, headers(credential)), ProductCreateResponse.class
@@ -64,9 +64,9 @@ public class Cafe24ProductClient implements Cafe24ProductPort {
     }
 
     @Override
-    public Product updateProduct(String mallId, Long productNo, String productName, BigDecimal price, BigDecimal supplyPrice, TokenCredential credential) {
+    public Product updateProduct(String mallId, Long productNo, ProductRegistration registration, TokenCredential credential) {
         String url = baseUrl(mallId) + "/products/" + productNo;
-        ProductUpdateRequest body = new ProductUpdateRequest(productName, price, supplyPrice);
+        ProductUpdateRequest body = new ProductUpdateRequest(registration);
 
         ProductCreateResponse response = exchange(
                 url, HttpMethod.PUT, new HttpEntity<>(body, headers(credential)), ProductCreateResponse.class
@@ -141,7 +141,14 @@ public class Cafe24ProductClient implements Cafe24ProductPort {
                 payload.getProductName(),
                 payload.getPrice(),
                 payload.getSupplyPrice(),
-                ProductStatus.from(payload.getDisplay(), payload.getSelling())
+                ProductStatus.from(payload.getDisplay(), payload.getSelling()),
+                payload.getDescription(),
+                payload.getPaymentInfo(),
+                payload.getShippingInfo(),
+                payload.getExchangeInfo(),
+                payload.getPriceExcludingTax(),
+                payload.getDetailImage(),
+                payload.getImageUploadType()
         );
     }
 }

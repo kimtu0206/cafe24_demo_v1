@@ -2,6 +2,7 @@ package org.example.cafe24_demo_v1.product.infrastructure.external;
 
 import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
 import org.example.cafe24_demo_v1.product.domain.model.Product;
+import org.example.cafe24_demo_v1.product.domain.model.ProductRegistration;
 import org.example.cafe24_demo_v1.product.domain.model.ProductStatus;
 import org.example.cafe24_demo_v1.shared.config.Cafe24Properties;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
@@ -55,7 +56,7 @@ class Cafe24ProductClientTest {
                         {"product": {"product_no": 1, "product_name": "테스트 상품", "price": "10000.00", "supply_price": "5000.00", "display": "T", "selling": "T"}}
                         """, MediaType.APPLICATION_JSON));
 
-        Product product = client.createProduct("mymall", "테스트 상품", new BigDecimal("10000.00"), new BigDecimal("5000.00"), credential);
+        Product product = client.createProduct("mymall", registration("테스트 상품", "10000.00", "5000.00"), credential);
 
         assertThat(product.getProductNo()).isEqualTo(1L);
         assertThat(product.getProductName()).isEqualTo("테스트 상품");
@@ -69,7 +70,7 @@ class Cafe24ProductClientTest {
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST).body("{\"error\": \"invalid request\"}"));
 
         assertThatThrownBy(() ->
-                client.createProduct("mymall", "테스트 상품", new BigDecimal("10000"), new BigDecimal("5000"), credential)
+                client.createProduct("mymall", registration("테스트 상품", "10000", "5000"), credential)
         ).isInstanceOf(Cafe24ApiException.class);
     }
 
@@ -83,7 +84,7 @@ class Cafe24ProductClientTest {
                         {"product": {"product_no": 1, "product_name": "수정된 상품", "price": "20000.00", "supply_price": "9000.00", "display": "T", "selling": "T"}}
                         """, MediaType.APPLICATION_JSON));
 
-        Product product = client.updateProduct("mymall", 1L, "수정된 상품", new BigDecimal("20000.00"), new BigDecimal("9000.00"), credential);
+        Product product = client.updateProduct("mymall", 1L, registration("수정된 상품", "20000.00", "9000.00"), credential);
 
         assertThat(product.getProductNo()).isEqualTo(1L);
         assertThat(product.getProductName()).isEqualTo("수정된 상품");
@@ -100,5 +101,12 @@ class Cafe24ProductClientTest {
         client.deleteProduct("mymall", 1L, credential);
 
         mockServer.verify();
+    }
+
+    private ProductRegistration registration(String productName, String price, String supplyPrice) {
+        return new ProductRegistration(
+                productName, new BigDecimal(price), new BigDecimal(supplyPrice),
+                null, null, null, null, null, null, null
+        );
     }
 }

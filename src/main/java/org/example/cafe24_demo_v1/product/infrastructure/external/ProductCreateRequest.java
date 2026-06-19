@@ -2,6 +2,7 @@ package org.example.cafe24_demo_v1.product.infrastructure.external;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
+import org.example.cafe24_demo_v1.product.domain.model.ProductRegistration;
 
 import java.math.BigDecimal;
 
@@ -17,8 +18,8 @@ class ProductCreateRequest {
 
     private final Body request;
 
-    ProductCreateRequest(String productName, BigDecimal price, BigDecimal supplyPrice) {
-        this.request = new Body(productName, price, supplyPrice);
+    ProductCreateRequest(ProductRegistration registration) {
+        this.request = new Body(registration);
     }
 
     @Getter
@@ -32,11 +33,31 @@ class ProductCreateRequest {
         private final String selling = "T";
         @JsonProperty("product_condition")
         private final String productCondition = "N";
+        private final String description;
+        @JsonProperty("payment_info")
+        private final String paymentInfo;
+        @JsonProperty("shipping_info")
+        private final String shippingInfo;
+        @JsonProperty("exchange_info")
+        private final String exchangeInfo;
+        @JsonProperty("price_excluding_tax")
+        private final BigDecimal priceExcludingTax;
+        @JsonProperty("detail_image")
+        private final String detailImage;
+        @JsonProperty("image_upload_type")
+        private final String imageUploadType;
 
-        Body(String productName, BigDecimal price, BigDecimal supplyPrice) {
-            this.productName = productName;
-            this.price = price;
-            this.supplyPrice = supplyPrice;
+        Body(ProductRegistration registration) {
+            this.productName = registration.getProductName();
+            this.price = registration.getPrice();
+            this.supplyPrice = registration.getSupplyPrice();
+            this.description = registration.getDescription();
+            this.paymentInfo = registration.getPaymentInfo();
+            this.shippingInfo = registration.getShippingInfo();
+            this.exchangeInfo = registration.getExchangeInfo();
+            this.priceExcludingTax = registration.getPriceExcludingTax();
+            this.detailImage = registration.getDetailImage();
+            this.imageUploadType = registration.getImageUploadType();
         }
     }
 }

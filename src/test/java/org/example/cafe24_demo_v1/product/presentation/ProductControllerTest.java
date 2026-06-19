@@ -53,7 +53,10 @@ class ProductControllerTest {
     @Test
     void 유효한_요청이면_상품을_등록한다() throws Exception {
         given(cafe24Properties.getMallId()).willReturn("mymall");
-        Product product = Product.register("mymall", 1L, "상품", new BigDecimal("1000"), new BigDecimal("500"), ProductStatus.ON_SALE);
+        Product product = Product.register(
+                "mymall", 1L, "상품", new BigDecimal("1000"), new BigDecimal("500"), ProductStatus.ON_SALE,
+                null, null, null, null, null, null, null
+        );
         given(productService.register(any())).willReturn(product);
 
         mockMvc.perform(post("/products")

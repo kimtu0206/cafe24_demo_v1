@@ -1,6 +1,7 @@
 package org.example.cafe24_demo_v1.webhook.infrastructure.persistence;
 
 import lombok.RequiredArgsConstructor;
+import org.example.cafe24_demo_v1.webhook.domain.model.WebhookEventType;
 import org.example.cafe24_demo_v1.webhook.domain.repository.WebhookEventRepository;
 import org.springframework.stereotype.Repository;
 
@@ -20,9 +21,10 @@ public class WebhookEventRepositoryAdapter implements WebhookEventRepository {
     }
 
     @Override
-    public void save(Integer eventNo, String mallId, String resourceId) {
+    public void save(Integer eventNo, WebhookEventType eventType, String mallId, String resourceId) {
         WebhookEventEntity entity = new WebhookEventEntity();
         entity.setEventNo(eventNo);
+        entity.setEventType(eventType.name());
         entity.setMallId(mallId);
         entity.setResourceId(normalize(resourceId));
         jpaRepository.save(entity);

@@ -22,6 +22,13 @@ public class Product {
     private BigDecimal price;
     private BigDecimal supplyPrice;
     private ProductStatus status;
+    private String description;
+    private String paymentInfo;
+    private String shippingInfo;
+    private String exchangeInfo;
+    private BigDecimal priceExcludingTax;
+    private String detailImage;
+    private String imageUploadType;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -34,7 +41,14 @@ public class Product {
             String productName,
             BigDecimal price,
             BigDecimal supplyPrice,
-            ProductStatus status
+            ProductStatus status,
+            String description,
+            String paymentInfo,
+            String shippingInfo,
+            String exchangeInfo,
+            BigDecimal priceExcludingTax,
+            String detailImage,
+            String imageUploadType
     ) {
         Product product = new Product();
         product.mallId = mallId;
@@ -43,6 +57,13 @@ public class Product {
         product.price = price;
         product.supplyPrice = supplyPrice;
         product.status = status;
+        product.description = description;
+        product.paymentInfo = paymentInfo;
+        product.shippingInfo = shippingInfo;
+        product.exchangeInfo = exchangeInfo;
+        product.priceExcludingTax = priceExcludingTax;
+        product.detailImage = detailImage;
+        product.imageUploadType = imageUploadType;
         product.createdAt = LocalDateTime.now();
         product.updatedAt = LocalDateTime.now();
         return product;
@@ -57,6 +78,13 @@ public class Product {
             BigDecimal price,
             BigDecimal supplyPrice,
             ProductStatus status,
+            String description,
+            String paymentInfo,
+            String shippingInfo,
+            String exchangeInfo,
+            BigDecimal priceExcludingTax,
+            String detailImage,
+            String imageUploadType,
             LocalDateTime createdAt,
             LocalDateTime updatedAt
     ) {
@@ -68,6 +96,13 @@ public class Product {
         product.price = price;
         product.supplyPrice = supplyPrice;
         product.status = status;
+        product.description = description;
+        product.paymentInfo = paymentInfo;
+        product.shippingInfo = shippingInfo;
+        product.exchangeInfo = exchangeInfo;
+        product.priceExcludingTax = priceExcludingTax;
+        product.detailImage = detailImage;
+        product.imageUploadType = imageUploadType;
         product.createdAt = createdAt;
         product.updatedAt = updatedAt;
         return product;
@@ -77,13 +112,32 @@ public class Product {
      * Cafe24로부터 받은 최신 정보로 상품 정보를 갱신한다.
      * 스케줄러 동기화, Webhook 상품 생성 알림 처리 시 사용한다.
      */
-    public void applySnapshot(String productName, BigDecimal price, BigDecimal supplyPrice, ProductStatus status) {
+    public void applySnapshot(
+            String productName,
+            BigDecimal price,
+            BigDecimal supplyPrice,
+            ProductStatus status,
+            String description,
+            String paymentInfo,
+            String shippingInfo,
+            String exchangeInfo,
+            BigDecimal priceExcludingTax,
+            String detailImage,
+            String imageUploadType
+    ) {
         Objects.requireNonNull(productName);
         Objects.requireNonNull(status);
         this.productName = productName;
         this.price = price;
         this.supplyPrice = supplyPrice;
         this.status = status;
+        this.description = description;
+        this.paymentInfo = paymentInfo;
+        this.shippingInfo = shippingInfo;
+        this.exchangeInfo = exchangeInfo;
+        this.priceExcludingTax = priceExcludingTax;
+        this.detailImage = detailImage;
+        this.imageUploadType = imageUploadType;
         this.updatedAt = LocalDateTime.now();
     }
 

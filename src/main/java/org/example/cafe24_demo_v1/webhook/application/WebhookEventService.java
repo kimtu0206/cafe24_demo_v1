@@ -9,6 +9,7 @@ import org.example.cafe24_demo_v1.webhook.domain.event.AppUninstalledEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductDeletedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductUpdatedEvent;
+import org.example.cafe24_demo_v1.webhook.domain.model.WebhookEventType;
 import org.example.cafe24_demo_v1.webhook.domain.repository.WebhookEventRepository;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -45,7 +46,7 @@ public class WebhookEventService {
         }
 
         // 이력 저장 (이후 중복 수신 시 위 조건에서 걸림)
-        webhookEventRepository.save(event.getEventNo(), event.getMallId(), null);
+        webhookEventRepository.save(event.getEventNo(), WebhookEventType.APP_UNINSTALLED, event.getMallId(), null);
 
         log.info("App uninstalled: mallId={}, clientId={}", event.getMallId(), event.getClientId());
         authorizationService.revoke(new RevokeAuthorizationCommand(event.getMallId()));
@@ -67,7 +68,7 @@ public class WebhookEventService {
             return;
         }
 
-        webhookEventRepository.save(event.getEventNo(), event.getMallId(), resourceId);
+        webhookEventRepository.save(event.getEventNo(), WebhookEventType.PRODUCT_CREATED, event.getMallId(), resourceId);
 
         log.info("Product created: mallId={}, productNo={}", event.getMallId(), event.getProductNo());
         productService.upsertFromWebhook(event.getMallId(), event.getProductNo());
@@ -89,7 +90,7 @@ public class WebhookEventService {
             return;
         }
 
-        webhookEventRepository.save(event.getEventNo(), event.getMallId(), resourceId);
+        webhookEventRepository.save(event.getEventNo(), WebhookEventType.PRODUCT_UPDATED, event.getMallId(), resourceId);
 
         log.info("Product updated: mallId={}, productNo={}", event.getMallId(), event.getProductNo());
         productService.upsertFromWebhook(event.getMallId(), event.getProductNo());
@@ -112,7 +113,7 @@ public class WebhookEventService {
             return;
         }
 
-        webhookEventRepository.save(event.getEventNo(), event.getMallId(), resourceId);
+        webhookEventRepository.save(event.getEventNo(), WebhookEventType.PRODUCT_DELETED, event.getMallId(), resourceId);
 
         log.info("Product deleted: mallId={}, productNo={}", event.getMallId(), event.getProductNo());
         productService.deleteFromWebhook(event.getMallId(), event.getProductNo());

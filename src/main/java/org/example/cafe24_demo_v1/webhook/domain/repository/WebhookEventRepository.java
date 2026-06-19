@@ -1,5 +1,7 @@
 package org.example.cafe24_demo_v1.webhook.domain.repository;
 
+import org.example.cafe24_demo_v1.webhook.domain.model.WebhookEventType;
+
 /**
  * Webhook 이벤트 이력 저장소 인터페이스.
  *
@@ -14,6 +16,6 @@ public interface WebhookEventRepository {
      */
     boolean exists(Integer eventNo, String mallId, String resourceId);
 
-    /** 수신한 이벤트를 이력에 저장한다. */
-    void save(Integer eventNo, String mallId, String resourceId);
+    /** 수신한 이벤트를 이력에 저장한다. eventType은 event_no를 사람이 읽을 수 있게 보조하는 값이다. */
+    void save(Integer eventNo, WebhookEventType eventType, String mallId, String resourceId);
 }

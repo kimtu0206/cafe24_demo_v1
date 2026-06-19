@@ -8,6 +8,7 @@ import org.example.cafe24_demo_v1.product.application.command.CreateProductComma
 import org.example.cafe24_demo_v1.product.application.command.DeleteProductCommand;
 import org.example.cafe24_demo_v1.product.application.command.UpdateProductCommand;
 import org.example.cafe24_demo_v1.product.domain.model.Product;
+import org.example.cafe24_demo_v1.product.domain.model.ProductRegistration;
 import org.example.cafe24_demo_v1.product.domain.repository.ProductRepository;
 import org.example.cafe24_demo_v1.product.domain.service.Cafe24ProductPort;
 import org.springframework.stereotype.Service;
@@ -37,9 +38,12 @@ public class ProductService {
     public Product register(CreateProductCommand command) {
         TokenCredential credential = authorizationService.getValidCredential(command.mallId());
 
-        Product product = cafe24ProductPort.createProduct(
-                command.mallId(), command.productName(), command.price(), command.supplyPrice(), credential
+        ProductRegistration registration = new ProductRegistration(
+                command.productName(), command.price(), command.supplyPrice(),
+                command.description(), command.paymentInfo(), command.shippingInfo(), command.exchangeInfo(),
+                command.priceExcludingTax(), command.detailImage(), command.imageUploadType()
         );
+        Product product = cafe24ProductPort.createProduct(command.mallId(), registration, credential);
 
         repository.save(product);
         return product;
@@ -50,9 +54,12 @@ public class ProductService {
     public Product update(UpdateProductCommand command) {
         TokenCredential credential = authorizationService.getValidCredential(command.mallId());
 
-        Product updated = cafe24ProductPort.updateProduct(
-                command.mallId(), command.productNo(), command.productName(), command.price(), command.supplyPrice(), credential
+        ProductRegistration registration = new ProductRegistration(
+                command.productName(), command.price(), command.supplyPrice(),
+                command.description(), command.paymentInfo(), command.shippingInfo(), command.exchangeInfo(),
+                command.priceExcludingTax(), command.detailImage(), command.imageUploadType()
         );
+        Product updated = cafe24ProductPort.updateProduct(command.mallId(), command.productNo(), registration, credential);
 
         upsert(updated);
         return updated;
@@ -115,7 +122,9 @@ public class ProductService {
                 .ifPresentOrElse(
                         existing -> {
                             existing.applySnapshot(
-                                    snapshot.getProductName(), snapshot.getPrice(), snapshot.getSupplyPrice(), snapshot.getStatus()
+                                    snapshot.getProductName(), snapshot.getPrice(), snapshot.getSupplyPrice(), snapshot.getStatus(),
+                                    snapshot.getDescription(), snapshot.getPaymentInfo(), snapshot.getShippingInfo(), snapshot.getExchangeInfo(),
+                                    snapshot.getPriceExcludingTax(), snapshot.getDetailImage(), snapshot.getImageUploadType()
                             );
                             repository.save(existing);
                         },

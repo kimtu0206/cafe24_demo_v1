@@ -20,6 +20,13 @@ class ProductMapper {
                 entity.getPrice(),
                 entity.getSupplyPrice(),
                 ProductStatus.valueOf(entity.getStatus()),
+                entity.getDescription(),
+                entity.getPaymentInfo(),
+                entity.getShippingInfo(),
+                entity.getExchangeInfo(),
+                entity.getPriceExcludingTax(),
+                entity.getDetailImage(),
+                entity.getImageUploadType(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );
@@ -35,6 +42,13 @@ class ProductMapper {
         entity.setPrice(domain.getPrice());
         entity.setSupplyPrice(domain.getSupplyPrice());
         entity.setStatus(domain.getStatus().name());
+        entity.setDescription(domain.getDescription());
+        entity.setPaymentInfo(domain.getPaymentInfo());
+        entity.setShippingInfo(domain.getShippingInfo());
+        entity.setExchangeInfo(domain.getExchangeInfo());
+        entity.setPriceExcludingTax(domain.getPriceExcludingTax());
+        entity.setDetailImage(domain.getDetailImage());
+        entity.setImageUploadType(domain.getImageUploadType());
         entity.setCreatedAt(domain.getCreatedAt());
         entity.setUpdatedAt(domain.getUpdatedAt());
         return entity;
