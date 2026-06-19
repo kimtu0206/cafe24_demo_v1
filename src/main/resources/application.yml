@@ -11,6 +11,9 @@ cafe24:
     api-key: ${CAFE24_WEBHOOK_API_KEY:}
 
 spring:
+  profiles:
+    default: local
+
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
@@ -18,16 +21,9 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
-    hibernate:
-      ddl-auto: update
-#      ddl-auto: update 개발용 (엔티티 수정하면 DB 수정 안 해도 됨 *컬럼 추가만 하지 삭제는 안함)
-#      ddl-auto: validate 운영용 (DB 변경 안 함 엔티티와 DB 구조만 비교)
-
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
-
-    show-sql: true
 
 server:
   port: 8080

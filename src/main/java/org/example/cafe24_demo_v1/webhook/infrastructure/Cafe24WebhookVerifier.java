@@ -17,6 +17,7 @@ public class Cafe24WebhookVerifier {
 
     /**
      * 요청 헤더의 x-api-key 값이 설정된 API Key와 일치하는지 확인한다.
+     * API Key가 설정되지 않은 경우 검증을 통과시키지 않고 실패로 처리한다(fail-closed).
      *
      * @param apiKeyHeader Webhook 요청의 x-api-key 헤더 값
      * @return 검증 성공 시 true, 실패 시 false
@@ -24,7 +25,7 @@ public class Cafe24WebhookVerifier {
     public boolean verify(String apiKeyHeader) {
         String expectedKey = cafe24Properties.getWebhook().getApiKey();
         if (expectedKey == null || expectedKey.isBlank()) {
-            return true;
+            return false;
         }
         return expectedKey.equals(apiKeyHeader);
     }

@@ -9,7 +9,7 @@ import java.util.Optional;
  */
 interface ProductJpaRepository extends JpaRepository<ProductEntity, Long> {
 
-    Optional<ProductEntity> findByProductNo(Long productNo);
+    Optional<ProductEntity> findByMallIdAndProductNo(String mallId, Long productNo);
 
-    void deleteByProductNo(Long productNo);
+    void deleteByMallIdAndProductNo(String mallId, Long productNo);
 }

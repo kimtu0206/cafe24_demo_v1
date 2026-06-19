@@ -25,10 +25,23 @@ Cafe24 OAuth 인가 흐름을 구현한 Spring Boot 프로젝트입니다.
 | `CAFE24_CLIENT_SECRET` | Cafe24 앱 클라이언트 Secret |
 | `CAFE24_MALL_ID` | 연동할 쇼핑몰 ID |
 | `CAFE24_REDIRECT_URI` | OAuth 콜백 URI |
-| `CAFE24_WEBHOOK_API_KEY` | Webhook 서명 검증 키 (로컬 개발 시 생략 가능) |
+| `CAFE24_WEBHOOK_API_KEY` | Webhook 서명 검증 키 (비어 있으면 모든 Webhook 요청이 거부됨) |
 | `DB_URL` | MySQL 접속 URL |
 | `DB_USERNAME` | DB 사용자명 |
 | `DB_PASSWORD` | DB 비밀번호 |
+
+---
+
+## Profile 설정
+
+`SPRING_PROFILES_ACTIVE`를 지정하지 않으면 기본값으로 `local` profile이 적용된다.
+
+| Profile | 파일 | ddl-auto | show-sql | 용도 |
+|---|---|---|---|---|
+| `local` (기본값) | `application-local.yml` | `update` | `true` | 로컬 개발 — 엔티티 수정 시 DB 스키마 자동 반영 |
+| `prod` | `application-prod.yml` | `validate` | `false` | 운영 — 스키마는 변경하지 않고 엔티티와 DB 구조만 검증, SQL 로그 비노출 |
+
+운영 환경에 배포할 때는 `SPRING_PROFILES_ACTIVE=prod` 환경변수를 반드시 설정해야 한다.
 
 ---
 

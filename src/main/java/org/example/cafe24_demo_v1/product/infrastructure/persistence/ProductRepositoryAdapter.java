@@ -20,8 +20,8 @@ public class ProductRepositoryAdapter implements ProductRepository {
     private final ProductMapper mapper;
 
     @Override
-    public Optional<Product> findByProductNo(Long productNo) {
-        return jpaRepository.findByProductNo(productNo)
+    public Optional<Product> findByMallIdAndProductNo(String mallId, Long productNo) {
+        return jpaRepository.findByMallIdAndProductNo(mallId, productNo)
                 .map(mapper::toDomain);
     }
 
@@ -40,7 +40,7 @@ public class ProductRepositoryAdapter implements ProductRepository {
     }
 
     @Override
-    public void deleteByProductNo(Long productNo) {
-        jpaRepository.deleteByProductNo(productNo);
+    public void deleteByMallIdAndProductNo(String mallId, Long productNo) {
+        jpaRepository.deleteByMallIdAndProductNo(mallId, productNo);
     }
 }

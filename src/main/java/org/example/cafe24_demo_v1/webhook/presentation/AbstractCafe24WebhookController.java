@@ -2,8 +2,10 @@ package org.example.cafe24_demo_v1.webhook.presentation;
 
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.webhook.infrastructure.Cafe24WebhookVerifier;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import java.util.Map;
 import java.util.Optional;
@@ -33,5 +35,15 @@ abstract class AbstractCafe24WebhookController {
             return Optional.of(ResponseEntity.badRequest().build());
         }
         return Optional.empty();
+    }
+
+    /**
+     * 거의 동시에 들어온 중복 Webhook이 이벤트 이력 테이블의 unique 제약 위반으로 충돌하면 발생한다.
+     * 이미 다른 요청이 같은 이벤트를 처리(또는 처리 중)라는 뜻이므로, Cafe24가 재전송하지 않도록 200을 반환한다.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Void> handleDuplicateWebhook(DataIntegrityViolationException e) {
+        log.info("Duplicate webhook ignored (concurrent race): {}", e.getMessage());
+        return ResponseEntity.ok().build();
     }
 }

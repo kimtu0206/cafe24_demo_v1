@@ -6,7 +6,7 @@ import org.example.cafe24_demo_v1.webhook.domain.event.AppUninstalledEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductDeletedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductUpdatedEvent;
-import org.example.cafe24_demo_v1.webhook.infrastructure.persistence.WebhookEventRepository;
+import org.example.cafe24_demo_v1.webhook.domain.repository.WebhookEventRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -95,7 +95,7 @@ class WebhookEventServiceTest {
         webhookEventService.onProductDeleted(new ProductDeletedEvent(90073, "mymall", 1L));
 
         verify(webhookEventRepository).save(90073, "mymall", "1");
-        verify(productService).deleteFromWebhook(1L);
+        verify(productService).deleteFromWebhook("mymall", 1L);
     }
 
     @Test
@@ -104,6 +104,6 @@ class WebhookEventServiceTest {
 
         webhookEventService.onProductDeleted(new ProductDeletedEvent(90073, "mymall", 1L));
 
-        verify(productService, never()).deleteFromWebhook(ArgumentMatchers.any());
+        verify(productService, never()).deleteFromWebhook(ArgumentMatchers.any(), ArgumentMatchers.any());
     }
 }

@@ -8,17 +8,19 @@ Cafe24 OAuth 인가(authorization) 흐름과 Webhook 수신을 구현한 Spring 
 
 ## Commands
 
-빌드 시스템은 Gradle. 이 저장소에는 `gradlew.bat`(Windows)만 있고 유닉스용 `gradlew`는 없다.
+빌드 시스템은 Gradle. Windows는 `gradlew.bat`, macOS/Linux는 `./gradlew`를 사용한다.
 
-- 빌드: `gradlew.bat build`
-- 실행: `gradlew.bat bootRun`
-- 전체 테스트: `gradlew.bat test`
-- 단일 테스트 클래스: `gradlew.bat test --tests "org.example.cafe24_demo_v1.<패키지>.<클래스명>"`
-- 단일 테스트 메서드: `gradlew.bat test --tests "org.example.cafe24_demo_v1.<패키지>.<클래스명>.<메서드명>"`
+- 빌드: `gradlew.bat build` / `./gradlew build`
+- 실행: `gradlew.bat bootRun` / `./gradlew bootRun`
+- 전체 테스트: `gradlew.bat test` / `./gradlew test`
+- 단일 테스트 클래스: `gradlew.bat test --tests "org.example.cafe24_demo_v1.<패키지>.<클래스명>"` (Unix는 `./gradlew`)
+- 단일 테스트 메서드: `gradlew.bat test --tests "org.example.cafe24_demo_v1.<패키지>.<클래스명>.<메서드명>"` (Unix는 `./gradlew`)
 
-`src/test`에는 아직 테스트가 하나도 없다 — 신규 기능을 추가할 때 테스트를 새로 작성해야 한다.
+신규 기능을 추가할 때는 테스트를 함께 작성한다(`src/test` 참고).
 
-실행 전 다음 환경변수가 필요하다(`src/main/resources/application.yml`, `README.md` 참고): `CAFE24_CLIENT_ID`, `CAFE24_CLIENT_SECRET`, `CAFE24_MALL_ID`, `CAFE24_REDIRECT_URI`, `CAFE24_WEBHOOK_API_KEY`(로컬 개발 시 생략 가능), `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`.
+실행 전 다음 환경변수가 필요하다(`src/main/resources/application.yml`, `README.md` 참고): `CAFE24_CLIENT_ID`, `CAFE24_CLIENT_SECRET`, `CAFE24_MALL_ID`, `CAFE24_REDIRECT_URI`, `CAFE24_WEBHOOK_API_KEY`(비어 있으면 모든 Webhook 요청이 거부됨 — fail-closed), `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`.
+
+Spring profile은 `local`(기본값, `application-local.yml`, `ddl-auto: update`/`show-sql: true`)과 `prod`(`application-prod.yml`, `ddl-auto: validate`/`show-sql: false`)로 나뉜다. `SPRING_PROFILES_ACTIVE`를 지정하지 않으면 `local`이 적용되므로, 운영 배포 시에는 반드시 `SPRING_PROFILES_ACTIVE=prod`를 설정해야 한다.
 
 Webhook 수신 URL은 기능별로 분리되어 있다(`/webhook/cafe24/app-uninstalled`, `/webhook/cafe24/products/created`, `/webhook/cafe24/products/updated`, `/webhook/cafe24/products/deleted`). Cafe24 개발자센터에 각 URL을 해당 이벤트 전용으로 등록한다 — 단일 콜백 URL 환경변수는 없다.
 

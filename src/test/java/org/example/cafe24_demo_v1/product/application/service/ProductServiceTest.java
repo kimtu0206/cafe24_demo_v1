@@ -70,7 +70,7 @@ class ProductServiceTest {
                 10L, 1L, "mymall", "기존 상품", new BigDecimal("1000"), new BigDecimal("500"),
                 ProductStatus.ON_SALE, LocalDateTime.now(), LocalDateTime.now()
         );
-        given(repository.findByProductNo(1L)).willReturn(Optional.of(existing));
+        given(repository.findByMallIdAndProductNo("mymall", 1L)).willReturn(Optional.of(existing));
 
         Product result = productService.update(new UpdateProductCommand("mymall", 1L, "수정된 상품", new BigDecimal("2000"), new BigDecimal("900")));
 
@@ -87,14 +87,14 @@ class ProductServiceTest {
         productService.delete(new DeleteProductCommand("mymall", 1L));
 
         verify(cafe24ProductPort).deleteProduct("mymall", 1L, credential);
-        verify(repository).deleteByProductNo(1L);
+        verify(repository).deleteByMallIdAndProductNo("mymall", 1L);
     }
 
     @Test
     void deleteFromWebhook은_Cafe24를_호출하지_않고_로컬DB에서만_삭제한다() {
-        productService.deleteFromWebhook(1L);
+        productService.deleteFromWebhook("mymall", 1L);
 
-        verify(repository).deleteByProductNo(1L);
+        verify(repository).deleteByMallIdAndProductNo("mymall", 1L);
         verify(cafe24ProductPort, never()).deleteProduct(any(), any(), any());
     }
 
@@ -108,7 +108,7 @@ class ProductServiceTest {
                 10L, 1L, "mymall", "기존 이름", new BigDecimal("1000"), new BigDecimal("500"),
                 ProductStatus.ON_SALE, LocalDateTime.now(), LocalDateTime.now()
         );
-        given(repository.findByProductNo(1L)).willReturn(Optional.of(existing));
+        given(repository.findByMallIdAndProductNo("mymall", 1L)).willReturn(Optional.of(existing));
 
         productService.upsertFromWebhook("mymall", 1L);
 
@@ -122,7 +122,7 @@ class ProductServiceTest {
         given(authorizationService.getValidCredential("mymall")).willReturn(credential);
         Product snapshot = Product.register("mymall", 2L, "신규 상품", new BigDecimal("3000"), new BigDecimal("1500"), ProductStatus.ON_SALE);
         given(cafe24ProductPort.getProduct("mymall", 2L, credential)).willReturn(snapshot);
-        given(repository.findByProductNo(2L)).willReturn(Optional.empty());
+        given(repository.findByMallIdAndProductNo("mymall", 2L)).willReturn(Optional.empty());
 
         productService.upsertFromWebhook("mymall", 2L);
 
@@ -138,7 +138,7 @@ class ProductServiceTest {
 
         given(cafe24ProductPort.getProducts("mymall", 0, 100, credential)).willReturn(fullPage);
         given(cafe24ProductPort.getProducts("mymall", 100, 100, credential)).willReturn(lastPage);
-        given(repository.findByProductNo(any())).willReturn(Optional.empty());
+        given(repository.findByMallIdAndProductNo(any(), any())).willReturn(Optional.empty());
 
         productService.syncFromCafe24("mymall");
 

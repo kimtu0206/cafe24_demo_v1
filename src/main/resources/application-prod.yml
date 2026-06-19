@@ -1,0 +1,5 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate # DB 스키마를 변경하지 않고 엔티티와 DB 구조만 비교
+    show-sql: false

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Cafe24 상품 생성/수정/삭제 Webhook 수신 컨트롤러.
@@ -33,7 +34,7 @@ public class ProductWebhookController extends AbstractCafe24WebhookController {
 
     @PostMapping("/created")
     public ResponseEntity<Void> created(@RequestHeader Map<String, String> headers, @RequestBody Cafe24WebhookPayload payload) {
-        return reject(headers, payload).orElseGet(() -> {
+        return reject(headers, payload).or(() -> requireProductNo(payload)).orElseGet(() -> {
             log.info("Webhook received: eventNo={}, productNo={}", payload.eventNo(), payload.resource().productNo());
             eventPublisher.publishEvent(
                     new ProductCreatedEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().productNo())
@@ -44,7 +45,7 @@ public class ProductWebhookController extends AbstractCafe24WebhookController {
 
     @PostMapping("/updated")
     public ResponseEntity<Void> updated(@RequestHeader Map<String, String> headers, @RequestBody Cafe24WebhookPayload payload) {
-        return reject(headers, payload).orElseGet(() -> {
+        return reject(headers, payload).or(() -> requireProductNo(payload)).orElseGet(() -> {
             log.info("Webhook received: eventNo={}, productNo={}", payload.eventNo(), payload.resource().productNo());
             eventPublisher.publishEvent(
                     new ProductUpdatedEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().productNo())
@@ -55,12 +56,21 @@ public class ProductWebhookController extends AbstractCafe24WebhookController {
 
     @PostMapping("/deleted")
     public ResponseEntity<Void> deleted(@RequestHeader Map<String, String> headers, @RequestBody Cafe24WebhookPayload payload) {
-        return reject(headers, payload).orElseGet(() -> {
+        return reject(headers, payload).or(() -> requireProductNo(payload)).orElseGet(() -> {
             log.info("Webhook received: eventNo={}, productNo={}", payload.eventNo(), payload.resource().productNo());
             eventPublisher.publishEvent(
                     new ProductDeletedEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().productNo())
             );
             return ResponseEntity.ok().build();
         });
+    }
+
+    /** 상품 Webhook은 공통 검증(reject)과 별개로 productNo가 반드시 있어야 한다. */
+    private Optional<ResponseEntity<Void>> requireProductNo(Cafe24WebhookPayload payload) {
+        if (payload.resource().productNo() == null) {
+            log.warn("Webhook payload missing productNo: eventNo={}", payload.eventNo());
+            return Optional.of(ResponseEntity.badRequest().build());
+        }
+        return Optional.empty();
     }
 }

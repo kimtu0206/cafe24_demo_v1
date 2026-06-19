@@ -1,5 +1,9 @@
 package org.example.cafe24_demo_v1.product.presentation;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.product.application.command.CreateProductCommand;
@@ -31,7 +35,7 @@ public class ProductController {
     private final Cafe24Properties cafe24Properties;
 
     @PostMapping
-    public ResponseEntity<ProductResponse> register(@RequestBody ProductRegisterRequest request) {
+    public ResponseEntity<ProductResponse> register(@Valid @RequestBody ProductRegisterRequest request) {
         Product product = productService.register(
                 new CreateProductCommand(cafe24Properties.getMallId(), request.productName(), request.price(), request.supplyPrice())
         );
@@ -39,7 +43,7 @@ public class ProductController {
     }
 
     @PutMapping("/{productNo}")
-    public ResponseEntity<ProductResponse> update(@PathVariable Long productNo, @RequestBody ProductUpdateRequest request) {
+    public ResponseEntity<ProductResponse> update(@PathVariable Long productNo, @Valid @RequestBody ProductUpdateRequest request) {
         Product product = productService.update(
                 new UpdateProductCommand(cafe24Properties.getMallId(), productNo, request.productName(), request.price(), request.supplyPrice())
         );
@@ -59,9 +63,17 @@ public class ProductController {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body("Cafe24 API 호출에 실패했습니다: " + e.getMessage());
     }
 
-    private record ProductRegisterRequest(String productName, BigDecimal price, BigDecimal supplyPrice) {}
+    private record ProductRegisterRequest(
+            @NotBlank String productName,
+            @NotNull @PositiveOrZero BigDecimal price,
+            @NotNull @PositiveOrZero BigDecimal supplyPrice
+    ) {}
 
-    private record ProductUpdateRequest(String productName, BigDecimal price, BigDecimal supplyPrice) {}
+    private record ProductUpdateRequest(
+            @NotBlank String productName,
+            @NotNull @PositiveOrZero BigDecimal price,
+            @NotNull @PositiveOrZero BigDecimal supplyPrice
+    ) {}
 
     private record ProductResponse(Long productNo, String productName, BigDecimal price, String status) {
         static ProductResponse from(Product product) {

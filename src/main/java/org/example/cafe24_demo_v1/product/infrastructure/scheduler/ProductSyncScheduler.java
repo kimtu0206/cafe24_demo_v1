@@ -18,7 +18,7 @@ public class ProductSyncScheduler {
     private final ProductService productService;
     private final Cafe24Properties cafe24Properties;
 
-    @Scheduled(cron = "0 0 23 * * *")
+    @Scheduled(cron = "0 0 10 * * *")
     public void syncProducts() {
         String mallId = cafe24Properties.getMallId();
         log.info("Product sync scheduler triggered: mallId={}", mallId);

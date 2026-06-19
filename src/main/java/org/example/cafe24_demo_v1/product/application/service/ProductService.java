@@ -64,7 +64,7 @@ public class ProductService {
         TokenCredential credential = authorizationService.getValidCredential(command.mallId());
 
         cafe24ProductPort.deleteProduct(command.mallId(), command.productNo(), credential);
-        repository.deleteByProductNo(command.productNo());
+        repository.deleteByMallIdAndProductNo(command.mallId(), command.productNo());
     }
 
     /**
@@ -83,8 +83,8 @@ public class ProductService {
      * Cafe24에는 이미 삭제된 상태이므로 API를 다시 호출하지 않고 로컬 DB에서만 제거한다.
      */
     @Transactional
-    public void deleteFromWebhook(Long productNo) {
-        repository.deleteByProductNo(productNo);
+    public void deleteFromWebhook(String mallId, Long productNo) {
+        repository.deleteByMallIdAndProductNo(mallId, productNo);
     }
 
     /**
@@ -111,7 +111,7 @@ public class ProductService {
 
     /** Cafe24 스냅샷을 로컬 DB에 반영한다. 이미 있으면 갱신, 없으면 신규 저장(Upsert). */
     private void upsert(Product snapshot) {
-        repository.findByProductNo(snapshot.getProductNo())
+        repository.findByMallIdAndProductNo(snapshot.getMallId(), snapshot.getProductNo())
                 .ifPresentOrElse(
                         existing -> {
                             existing.applySnapshot(

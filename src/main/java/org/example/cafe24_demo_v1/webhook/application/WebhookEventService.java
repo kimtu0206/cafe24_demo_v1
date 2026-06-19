@@ -9,7 +9,7 @@ import org.example.cafe24_demo_v1.webhook.domain.event.AppUninstalledEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductDeletedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductUpdatedEvent;
-import org.example.cafe24_demo_v1.webhook.infrastructure.persistence.WebhookEventRepository;
+import org.example.cafe24_demo_v1.webhook.domain.repository.WebhookEventRepository;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -115,6 +115,6 @@ public class WebhookEventService {
         webhookEventRepository.save(event.getEventNo(), event.getMallId(), resourceId);
 
         log.info("Product deleted: mallId={}, productNo={}", event.getMallId(), event.getProductNo());
-        productService.deleteFromWebhook(event.getProductNo());
+        productService.deleteFromWebhook(event.getMallId(), event.getProductNo());
     }
 }

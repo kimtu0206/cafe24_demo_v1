@@ -1,27 +1,25 @@
 package org.example.cafe24_demo_v1.webhook.infrastructure.persistence;
 
 import lombok.RequiredArgsConstructor;
+import org.example.cafe24_demo_v1.webhook.domain.repository.WebhookEventRepository;
 import org.springframework.stereotype.Repository;
 
 /**
- * Webhook 이벤트 이력 저장소.
+ * 도메인 인터페이스(WebhookEventRepository)의 JPA 구현체.
  * 중복 수신 여부 확인과 이력 저장을 담당한다.
  */
 @Repository
 @RequiredArgsConstructor
-public class WebhookEventRepository {
+public class WebhookEventRepositoryAdapter implements WebhookEventRepository {
 
     private final WebhookEventJpaRepository jpaRepository;
 
-    /**
-     * eventNo + mallId + resourceId 조합이 이미 처리된 이벤트인지 확인한다.
-     * resourceId는 리소스(예: 상품)가 없는 이벤트라면 null을 넘기면 된다.
-     */
+    @Override
     public boolean exists(Integer eventNo, String mallId, String resourceId) {
         return jpaRepository.existsByEventNoAndMallIdAndResourceId(eventNo, mallId, normalize(resourceId));
     }
 
-    /** 수신한 이벤트를 이력에 저장한다. */
+    @Override
     public void save(Integer eventNo, String mallId, String resourceId) {
         WebhookEventEntity entity = new WebhookEventEntity();
         entity.setEventNo(eventNo);

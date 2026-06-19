@@ -10,11 +10,11 @@ import java.util.Optional;
  */
 public interface ProductRepository {
 
-    Optional<Product> findByProductNo(Long productNo);
+    Optional<Product> findByMallIdAndProductNo(String mallId, Long productNo);
 
     List<Product> findAll();
 
     void save(Product product);
 
-    void deleteByProductNo(Long productNo);
+    void deleteByMallIdAndProductNo(String mallId, Long productNo);
 }

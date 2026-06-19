@@ -13,7 +13,10 @@ import java.time.LocalDateTime;
  * package-private으로 선언한다.
  */
 @Entity
-@Table(name = "cafe24_product")
+@Table(
+        name = "cafe24_product",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"mall_id", "product_no"})
+)
 @Getter
 @Setter
 class ProductEntity {
@@ -22,7 +25,7 @@ class ProductEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "product_no", nullable = false, unique = true)
+    @Column(name = "product_no", nullable = false)
     private Long productNo;   // Cafe24 상품 번호
 
     @Column(name = "mall_id", nullable = false)
