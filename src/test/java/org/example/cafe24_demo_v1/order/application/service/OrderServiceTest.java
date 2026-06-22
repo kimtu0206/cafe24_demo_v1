@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -22,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -128,6 +130,40 @@ class OrderServiceTest {
 
         assertThatThrownBy(() -> orderService.upsertFromWebhook("mymall", "999"))
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void syncFromCafe24는_한_건_처리가_실패해도_나머지_건을_계속_처리한다() {
+        LocalDateTime updatedSince = LocalDateTime.now().minusMinutes(10);
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+
+        Order failing = order("mymall", "fail-1", "N10", "1000");
+        Order succeeding = order("mymall", "ok-1", "N10", "1000");
+        given(cafe24OrderPort.getOrders("mymall", updatedSince, 0, 100, credential))
+                .willReturn(List.of(failing, succeeding));
+        given(repository.findByMallIdAndOrderId(any(), any())).willReturn(Optional.empty());
+        willThrow(new RuntimeException("DB 순단")).given(repository).save(failing);
+
+        orderService.syncFromCafe24("mymall", updatedSince);
+
+        verify(repository).save(succeeding);
+    }
+
+    @Test
+    void upsertFromWebhook은_동시_삽입_경쟁으로_충돌하면_재조회후_갱신으로_폴백한다() {
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        Order snapshot = order("mymall", "3", "N40", "2000");
+        given(cafe24OrderPort.getOrder("mymall", "3", credential)).willReturn(Optional.of(snapshot));
+
+        Order concurrentlyInserted = order("mymall", "3", "N10", "1000");
+        given(repository.findByMallIdAndOrderId("mymall", "3"))
+                .willReturn(Optional.empty(), Optional.of(concurrentlyInserted));
+        willThrow(new DataIntegrityViolationException("duplicate entry")).given(repository).save(snapshot);
+
+        orderService.upsertFromWebhook("mymall", "3");
+
+        assertThat(concurrentlyInserted.getOrderStatus()).isEqualTo("N40");
+        verify(repository).save(concurrentlyInserted);
     }
 
     private List<Order> fixedSizeOrders(int size, String orderIdPrefix) {
