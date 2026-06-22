@@ -1,6 +1,7 @@
 package org.example.cafe24_demo_v1.order.infrastructure.persistence;
 
 import org.example.cafe24_demo_v1.order.domain.model.Order;
+import org.example.cafe24_demo_v1.order.domain.model.OrderEmbeddedResources;
 import org.springframework.stereotype.Component;
 
 /**
@@ -23,6 +24,14 @@ class OrderMapper {
                 entity.getPaymentMethod(),
                 entity.getOrderedAt(),
                 entity.getRawJson(),
+                new OrderEmbeddedResources(
+                        entity.getItems(),
+                        entity.getReceivers(),
+                        entity.getBuyer(),
+                        entity.getReturnInfo(),
+                        entity.getCancellation(),
+                        entity.getExchange()
+                ),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );
@@ -42,6 +51,12 @@ class OrderMapper {
         entity.setPaymentMethod(domain.getPaymentMethod());
         entity.setOrderedAt(domain.getOrderedAt());
         entity.setRawJson(domain.getRawJson());
+        entity.setItems(domain.getItems());
+        entity.setReceivers(domain.getReceivers());
+        entity.setBuyer(domain.getBuyer());
+        entity.setReturnInfo(domain.getReturnInfo());
+        entity.setCancellation(domain.getCancellation());
+        entity.setExchange(domain.getExchange());
         entity.setCreatedAt(domain.getCreatedAt());
         entity.setUpdatedAt(domain.getUpdatedAt());
         return entity;

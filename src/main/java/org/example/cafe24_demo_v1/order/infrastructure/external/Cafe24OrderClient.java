@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
 import org.example.cafe24_demo_v1.order.domain.model.Order;
+import org.example.cafe24_demo_v1.order.domain.model.OrderEmbeddedResources;
 import org.example.cafe24_demo_v1.order.domain.service.Cafe24OrderPort;
 import org.example.cafe24_demo_v1.shared.config.Cafe24Properties;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
@@ -39,6 +40,13 @@ public class Cafe24OrderClient implements Cafe24OrderPort {
 
     private static final DateTimeFormatter SEARCH_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
+    /**
+     * 주문 하위 리소스(품목/수령자/주문자/반품/취소/교환)를 한 번의 호출로 같이 조회하기 위한 embed 값.
+     * 각 리소스는 별도 엔드포인트(예: /orders/{order_id}/items)로 조회했을 때와 동일한 형태로 응답에 포함되며,
+     * 컬럼화하지 않고 rawJson에 원본 그대로 보존한다(필드 구조 변경에 안전하게 대응하기 위함).
+     */
+    private static final String EMBED_RESOURCES = "items,receivers,buyer,return,cancellation,exchange";
+
     private final Cafe24Properties properties;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
@@ -56,6 +64,7 @@ public class Cafe24OrderClient implements Cafe24OrderPort {
                 .queryParam("end_date", LocalDateTime.now().format(SEARCH_DATE_FORMAT))
                 .queryParam("offset", offset)
                 .queryParam("limit", limit)
+                .queryParam("embed", EMBED_RESOURCES)
                 .toUriString();
 
         String body = exchange(url, new HttpEntity<>(headers(credential)));
@@ -67,6 +76,7 @@ public class Cafe24OrderClient implements Cafe24OrderPort {
         // 주문 상세 단건 엔드포인트의 응답 구조가 불확실해, 이미 검증된 목록 조회를 order_id로 필터링해서 재사용한다.
         String url = UriComponentsBuilder.fromUriString(baseUrl(mallId) + "/orders")
                 .queryParam("order_id", orderId)
+                .queryParam("embed", EMBED_RESOURCES)
                 .toUriString();
 
         String body = exchange(url, new HttpEntity<>(headers(credential)));
@@ -124,8 +134,10 @@ public class Cafe24OrderClient implements Cafe24OrderPort {
      * 나뉘어 있다. 세 값을 조합해 하나의 상태로 만드는 규칙은 아직 정해지지 않아 우선 null로 둔다
      * (raw json에는 세 값이 모두 보존되어 있어 이후 규칙이 정해지면 재처리로 채울 수 있다).
      *
-     * buyerName: 기본 응답에는 없고 Cafe24의 개인정보 제공 동의(embed=buyer) 승인이 있어야 조회 가능하다.
-     * 아직 미적용이라 null로 둔다. buyerEmail은 대신 member_email로 채운다(비회원 주문이면 비어있을 수 있음).
+     * buyerName: embed=buyer로 주문자정보를 함께 요청하지만, Cafe24의 개인정보 제공 동의 승인이 있어야
+     * 응답에 실제 값이 채워진다. 동의 전이거나 embed 응답의 정확한 필드 구조가 확인되지 않아 우선 null로 둔다
+     * (embed로 받은 buyer/items/receivers/return/cancellation/exchange 원본은 rawJson에 보존되므로,
+     * 구조가 확인되면 이후 컬럼 매핑을 추가할 수 있다). buyerEmail은 대신 member_email로 채운다(비회원 주문이면 비어있을 수 있음).
      */
     private Order toDomain(String mallId, JsonNode node) {
         return Order.register(
@@ -138,8 +150,37 @@ public class Cafe24OrderClient implements Cafe24OrderPort {
                 decimal(node, "payment_amount"),
                 joinIfArray(node, "payment_method"),
                 dateTime(node, "order_date"),
-                node.toString()
+                node.toString(),
+                extractEmbeds(node)
         );
+    }
+
+    /**
+     * EMBED_RESOURCES에 나열된 하위 리소스 이름을 순회하며, 응답에 포함된 해당 리소스의 원본(JSON)을
+     * 같은 이름의 컬럼에 매핑한다. 리소스가 응답에 없으면(개인정보 동의 미승인 등) null로 둔다.
+     */
+    private OrderEmbeddedResources extractEmbeds(JsonNode node) {
+        String items = null;
+        String receivers = null;
+        String buyer = null;
+        String returnInfo = null;
+        String cancellation = null;
+        String exchange = null;
+
+        for (String resource : EMBED_RESOURCES.split(",")) {
+            JsonNode embedded = node.get(resource);
+            String json = (embedded == null || embedded.isNull()) ? null : embedded.toString();
+            switch (resource) {
+                case "items" -> items = json;
+                case "receivers" -> receivers = json;
+                case "buyer" -> buyer = json;
+                case "return" -> returnInfo = json;
+                case "cancellation" -> cancellation = json;
+                case "exchange" -> exchange = json;
+            }
+        }
+
+        return new OrderEmbeddedResources(items, receivers, buyer, returnInfo, cancellation, exchange);
     }
 
     private String text(JsonNode node, String field) {

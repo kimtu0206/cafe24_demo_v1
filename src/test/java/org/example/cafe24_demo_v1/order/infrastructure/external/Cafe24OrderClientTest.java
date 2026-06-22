@@ -20,6 +20,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -53,6 +54,19 @@ class Cafe24OrderClientTest {
         LocalDateTime updatedSince = LocalDateTime.of(2017, 1, 1, 0, 0);
         mockServer.expect(requestTo(startsWith(
                         "https://mymall.cafe24api.com/api/v2/admin/orders?start_date=2017-01-01&end_date=")))
+                .andExpect(method(GET))
+                .andRespond(withSuccess("{\"orders\": []}", MediaType.APPLICATION_JSON));
+
+        client.getOrders("mymall", updatedSince, 0, 100, credential);
+
+        mockServer.verify();
+    }
+
+    @Test
+    void getOrders는_하위_리소스를_함께_조회하기_위해_embed_파라미터를_보낸다() {
+        LocalDateTime updatedSince = LocalDateTime.of(2017, 1, 1, 0, 0);
+        mockServer.expect(requestTo(containsString(
+                        "embed=items,receivers,buyer,return,cancellation,exchange")))
                 .andExpect(method(GET))
                 .andRespond(withSuccess("{\"orders\": []}", MediaType.APPLICATION_JSON));
 
@@ -99,6 +113,74 @@ class Cafe24OrderClientTest {
     }
 
     @Test
+    void getOrders는_embed로_받은_하위_리소스를_각각_같은_이름의_필드에_담는다() {
+        // embed=items,receivers,buyer,return,cancellation,exchange 응답 시 주문 객체 안에 하위 리소스가 함께 포함된다.
+        // 정확한 하위 필드 구조와 무관하게, 리소스 이름과 같은 필드에 원본 그대로 담기는지만 확인한다.
+        mockServer.expect(requestTo(startsWith("https://mymall.cafe24api.com/api/v2/admin/orders?")))
+                .andRespond(withSuccess("""
+                        {"orders": [
+                          {
+                            "order_id": "20170710-0000013",
+                            "member_id": "sampleid",
+                            "member_email": "sample@sample.com",
+                            "payment_amount": "30000.00",
+                            "payment_method": ["card"],
+                            "order_date": "2018-07-04T11:21:35+09:00",
+                            "items": [
+                              {"item_no": 1, "product_name": "샘플 상품"}
+                            ],
+                            "buyer": {"name": "홍길동"},
+                            "receivers": [
+                              {"receiver_name": "홍길동", "receiver_phone": "010-0000-0000"}
+                            ],
+                            "return": {"return_no": "1"},
+                            "cancellation": {"cancel_no": "1"},
+                            "exchange": {"exchange_no": "1"}
+                          }
+                        ]}
+                        """, MediaType.APPLICATION_JSON));
+
+        List<Order> orders = client.getOrders("mymall", LocalDateTime.now().minusMinutes(10), 0, 100, credential);
+
+        assertThat(orders).hasSize(1);
+        Order order = orders.get(0);
+        assertThat(order.getItems()).contains("샘플 상품");
+        assertThat(order.getReceivers()).contains("홍길동", "receiver_phone");
+        assertThat(order.getBuyer()).contains("홍길동");
+        assertThat(order.getReturnInfo()).contains("return_no");
+        assertThat(order.getCancellation()).contains("cancel_no");
+        assertThat(order.getExchange()).contains("exchange_no");
+        assertThat(order.getRawJson()).contains("샘플 상품", "receiver_phone", "return_no");
+        mockServer.verify();
+    }
+
+    @Test
+    void getOrders는_embed_응답에_하위_리소스가_없으면_해당_필드를_null로_둔다() {
+        mockServer.expect(requestTo(startsWith("https://mymall.cafe24api.com/api/v2/admin/orders?")))
+                .andRespond(withSuccess("""
+                        {"orders": [
+                          {
+                            "order_id": "20170710-0000013",
+                            "member_email": "sample@sample.com",
+                            "payment_amount": "30000.00",
+                            "payment_method": ["card"],
+                            "order_date": "2018-07-04T11:21:35+09:00"
+                          }
+                        ]}
+                        """, MediaType.APPLICATION_JSON));
+
+        List<Order> orders = client.getOrders("mymall", LocalDateTime.now().minusMinutes(10), 0, 100, credential);
+
+        Order order = orders.get(0);
+        assertThat(order.getItems()).isNull();
+        assertThat(order.getReceivers()).isNull();
+        assertThat(order.getBuyer()).isNull();
+        assertThat(order.getReturnInfo()).isNull();
+        assertThat(order.getCancellation()).isNull();
+        assertThat(order.getExchange()).isNull();
+    }
+
+    @Test
     void 주문이_없으면_빈_목록을_반환한다() {
         mockServer.expect(requestTo(startsWith("https://mymall.cafe24api.com/api/v2/admin/orders?")))
                 .andRespond(withSuccess("{\"orders\": []}", MediaType.APPLICATION_JSON));
@@ -120,7 +202,8 @@ class Cafe24OrderClientTest {
 
     @Test
     void getOrder는_order_id로_필터링해서_단건을_조회한다() {
-        mockServer.expect(requestTo("https://mymall.cafe24api.com/api/v2/admin/orders?order_id=20170710-0000013"))
+        mockServer.expect(requestTo("https://mymall.cafe24api.com/api/v2/admin/orders?order_id=20170710-0000013"
+                        + "&embed=items,receivers,buyer,return,cancellation,exchange"))
                 .andExpect(method(GET))
                 .andRespond(withSuccess("""
                         {"orders": [
@@ -144,7 +227,8 @@ class Cafe24OrderClientTest {
 
     @Test
     void getOrder는_결과가_없으면_빈_Optional을_반환한다() {
-        mockServer.expect(requestTo("https://mymall.cafe24api.com/api/v2/admin/orders?order_id=missing"))
+        mockServer.expect(requestTo("https://mymall.cafe24api.com/api/v2/admin/orders?order_id=missing"
+                        + "&embed=items,receivers,buyer,return,cancellation,exchange"))
                 .andRespond(withSuccess("{\"orders\": []}", MediaType.APPLICATION_JSON));
 
         Optional<Order> order = client.getOrder("mymall", "missing", credential);

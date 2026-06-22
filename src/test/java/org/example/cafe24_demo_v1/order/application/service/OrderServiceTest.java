@@ -3,6 +3,7 @@ package org.example.cafe24_demo_v1.order.application.service;
 import org.example.cafe24_demo_v1.authorization.application.service.AppAuthorizationService;
 import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
 import org.example.cafe24_demo_v1.order.domain.model.Order;
+import org.example.cafe24_demo_v1.order.domain.model.OrderEmbeddedResources;
 import org.example.cafe24_demo_v1.order.domain.repository.OrderRepository;
 import org.example.cafe24_demo_v1.order.domain.service.Cafe24OrderPort;
 import org.junit.jupiter.api.BeforeEach;
@@ -140,7 +141,7 @@ class OrderServiceTest {
     private Order order(String mallId, String orderId, String orderStatus, String totalAmount) {
         return Order.register(
                 mallId, orderId, orderStatus, "member", "buyer", "buyer@test.com",
-                new BigDecimal(totalAmount), "card", LocalDateTime.now(), "{}"
+                new BigDecimal(totalAmount), "card", LocalDateTime.now(), "{}", OrderEmbeddedResources.empty()
         );
     }
 }

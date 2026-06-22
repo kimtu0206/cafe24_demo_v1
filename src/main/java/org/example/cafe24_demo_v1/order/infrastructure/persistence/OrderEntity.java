@@ -55,6 +55,25 @@ class OrderEntity {
     @Column(name = "order_raw_json", columnDefinition = "TEXT")
     private String rawJson;   // Cafe24 응답 원본(JSON) — 컬럼화하지 않은 나머지 정보 보존용
 
+    @Column(name = "items", columnDefinition = "TEXT")
+    private String items;   // embed=items 응답 원본(JSON)
+
+    @Column(name = "receivers", columnDefinition = "TEXT")
+    private String receivers;   // embed=receivers 응답 원본(JSON)
+
+    @Column(name = "buyer", columnDefinition = "TEXT")
+    private String buyer;   // embed=buyer 응답 원본(JSON)
+
+    // return은 MySQL 예약어라 컬럼명을 return_info로 둔다.
+    @Column(name = "return_info", columnDefinition = "TEXT")
+    private String returnInfo;   // embed=return 응답 원본(JSON)
+
+    @Column(name = "cancellation", columnDefinition = "TEXT")
+    private String cancellation;   // embed=cancellation 응답 원본(JSON)
+
+    @Column(name = "exchange", columnDefinition = "TEXT")
+    private String exchange;   // embed=exchange 응답 원본(JSON)
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

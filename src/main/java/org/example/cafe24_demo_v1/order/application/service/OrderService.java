@@ -70,7 +70,8 @@ public class OrderService {
                         existing -> {
                             existing.applySnapshot(
                                     snapshot.getOrderStatus(), snapshot.getMemberId(), snapshot.getBuyerName(), snapshot.getBuyerEmail(),
-                                    snapshot.getTotalAmount(), snapshot.getPaymentMethod(), snapshot.getOrderedAt(), snapshot.getRawJson()
+                                    snapshot.getTotalAmount(), snapshot.getPaymentMethod(), snapshot.getOrderedAt(), snapshot.getRawJson(),
+                                    snapshot.getEmbeds()
                             );
                             repository.save(existing);
                         },

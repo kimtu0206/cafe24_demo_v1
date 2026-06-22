@@ -26,6 +26,12 @@ public class Order {
     private String paymentMethod;
     private LocalDateTime orderedAt;
     private String rawJson;           // Cafe24 응답 원본(JSON). 컬럼화하지 않은 나머지 정보를 보존한다.
+    private String items;             // embed=items 응답 원본(JSON)
+    private String receivers;         // embed=receivers 응답 원본(JSON)
+    private String buyer;             // embed=buyer 응답 원본(JSON)
+    private String returnInfo;        // embed=return 응답 원본(JSON)
+    private String cancellation;      // embed=cancellation 응답 원본(JSON)
+    private String exchange;          // embed=exchange 응답 원본(JSON)
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -42,7 +48,8 @@ public class Order {
             BigDecimal totalAmount,
             String paymentMethod,
             LocalDateTime orderedAt,
-            String rawJson
+            String rawJson,
+            OrderEmbeddedResources embeds
     ) {
         Objects.requireNonNull(mallId, "mallId must not be null");
         Objects.requireNonNull(orderId, "orderId must not be null");
@@ -58,6 +65,7 @@ public class Order {
         order.paymentMethod = paymentMethod;
         order.orderedAt = orderedAt;
         order.rawJson = rawJson;
+        order.applyEmbeds(embeds);
         order.createdAt = LocalDateTime.now();
         order.updatedAt = LocalDateTime.now();
         return order;
@@ -76,6 +84,7 @@ public class Order {
             String paymentMethod,
             LocalDateTime orderedAt,
             String rawJson,
+            OrderEmbeddedResources embeds,
             LocalDateTime createdAt,
             LocalDateTime updatedAt
     ) {
@@ -91,6 +100,7 @@ public class Order {
         order.paymentMethod = paymentMethod;
         order.orderedAt = orderedAt;
         order.rawJson = rawJson;
+        order.applyEmbeds(embeds);
         order.createdAt = createdAt;
         order.updatedAt = updatedAt;
         return order;
@@ -108,7 +118,8 @@ public class Order {
             BigDecimal totalAmount,
             String paymentMethod,
             LocalDateTime orderedAt,
-            String rawJson
+            String rawJson,
+            OrderEmbeddedResources embeds
     ) {
         this.orderStatus = orderStatus;
         this.memberId = memberId;
@@ -118,7 +129,22 @@ public class Order {
         this.paymentMethod = paymentMethod;
         this.orderedAt = orderedAt;
         this.rawJson = rawJson;
+        applyEmbeds(embeds);
         this.updatedAt = LocalDateTime.now();
+    }
+
+    /** 이 주문이 갖고 있는 embed 하위 리소스 원본을 VO로 묶어서 반환한다. */
+    public OrderEmbeddedResources getEmbeds() {
+        return new OrderEmbeddedResources(items, receivers, buyer, returnInfo, cancellation, exchange);
+    }
+
+    private void applyEmbeds(OrderEmbeddedResources embeds) {
+        this.items = embeds.getItems();
+        this.receivers = embeds.getReceivers();
+        this.buyer = embeds.getBuyer();
+        this.returnInfo = embeds.getReturnInfo();
+        this.cancellation = embeds.getCancellation();
+        this.exchange = embeds.getExchange();
     }
 
     // DB 저장 후 생성된 PK를 주입할 때 사용
