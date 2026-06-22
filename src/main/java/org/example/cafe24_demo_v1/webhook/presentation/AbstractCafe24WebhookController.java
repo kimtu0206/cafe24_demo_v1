@@ -23,15 +23,18 @@ abstract class AbstractCafe24WebhookController {
         this.verifier = verifier;
     }
 
-    /** 검증에 실패하면 즉시 반환할 응답을 담아 돌려주고, 통과하면 빈 Optional을 반환한다. */
-    protected Optional<ResponseEntity<Void>> reject(Map<String, String> headers, Cafe24WebhookPayload payload) {
+    /**
+     * 검증에 실패하면 즉시 반환할 응답을 담아 돌려주고, 통과하면 빈 Optional을 반환한다.
+     * resource는 Webhook 종류마다 타입이 달라(record 또는 JsonNode) Object로 받아 null 여부만 확인한다.
+     */
+    protected Optional<ResponseEntity<Void>> reject(Map<String, String> headers, Integer eventNo, Object resource) {
         String apiKey = headers.getOrDefault("x-api-key", "");
         if (!verifier.verify(apiKey)) {
             log.warn("Webhook signature verification failed");
             return Optional.of(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
         }
-        if (payload.eventNo() == null || payload.resource() == null) {
-            log.warn("Webhook payload missing required fields: eventNo={}, resource={}", payload.eventNo(), payload.resource());
+        if (eventNo == null || resource == null) {
+            log.warn("Webhook payload missing required fields: eventNo={}, resource={}", eventNo, resource);
             return Optional.of(ResponseEntity.badRequest().build());
         }
         return Optional.empty();

@@ -1,8 +1,10 @@
 package org.example.cafe24_demo_v1.webhook.application;
 
 import org.example.cafe24_demo_v1.authorization.application.service.AppAuthorizationService;
+import org.example.cafe24_demo_v1.order.application.service.OrderWebhookEventService;
 import org.example.cafe24_demo_v1.product.application.service.ProductService;
 import org.example.cafe24_demo_v1.webhook.domain.event.AppUninstalledEvent;
+import org.example.cafe24_demo_v1.webhook.domain.event.OrderCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductDeletedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductUpdatedEvent;
@@ -24,13 +26,16 @@ class WebhookEventServiceTest {
 
     @Mock private AppAuthorizationService authorizationService;
     @Mock private ProductService productService;
+    @Mock private OrderWebhookEventService orderWebhookEventService;
     @Mock private WebhookEventRepository webhookEventRepository;
 
     private WebhookEventService webhookEventService;
 
     @BeforeEach
     void setUp() {
-        webhookEventService = new WebhookEventService(authorizationService, productService, webhookEventRepository);
+        webhookEventService = new WebhookEventService(
+                authorizationService, productService, orderWebhookEventService, webhookEventRepository
+        );
     }
 
     @Test
@@ -106,5 +111,12 @@ class WebhookEventServiceTest {
         webhookEventService.onProductDeleted(new ProductDeletedEvent(90073, "mymall", 1L));
 
         verify(productService, never()).deleteFromWebhook(ArgumentMatchers.any(), ArgumentMatchers.any());
+    }
+
+    @Test
+    void 주문_생성_이벤트는_원본_저장만_위임한다() {
+        webhookEventService.onOrderCreated(new OrderCreatedEvent(90023, "mymall", "1", "{}"));
+
+        verify(orderWebhookEventService).saveRaw("mymall", 90023, "1", "{}");
     }
 }

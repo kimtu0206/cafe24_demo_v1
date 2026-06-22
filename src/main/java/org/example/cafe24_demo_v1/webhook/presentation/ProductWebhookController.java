@@ -34,7 +34,7 @@ public class ProductWebhookController extends AbstractCafe24WebhookController {
 
     @PostMapping("/created")
     public ResponseEntity<Void> created(@RequestHeader Map<String, String> headers, @RequestBody Cafe24WebhookPayload payload) {
-        return reject(headers, payload).or(() -> requireProductNo(payload)).orElseGet(() -> {
+        return reject(headers, payload.eventNo(), payload.resource()).or(() -> requireProductNo(payload)).orElseGet(() -> {
             log.info("Webhook received: eventNo={}, productNo={}", payload.eventNo(), payload.resource().productNo());
             eventPublisher.publishEvent(
                     new ProductCreatedEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().productNo())
@@ -45,7 +45,7 @@ public class ProductWebhookController extends AbstractCafe24WebhookController {
 
     @PostMapping("/updated")
     public ResponseEntity<Void> updated(@RequestHeader Map<String, String> headers, @RequestBody Cafe24WebhookPayload payload) {
-        return reject(headers, payload).or(() -> requireProductNo(payload)).orElseGet(() -> {
+        return reject(headers, payload.eventNo(), payload.resource()).or(() -> requireProductNo(payload)).orElseGet(() -> {
             log.info("Webhook received: eventNo={}, productNo={}", payload.eventNo(), payload.resource().productNo());
             eventPublisher.publishEvent(
                     new ProductUpdatedEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().productNo())
@@ -56,7 +56,7 @@ public class ProductWebhookController extends AbstractCafe24WebhookController {
 
     @PostMapping("/deleted")
     public ResponseEntity<Void> deleted(@RequestHeader Map<String, String> headers, @RequestBody Cafe24WebhookPayload payload) {
-        return reject(headers, payload).or(() -> requireProductNo(payload)).orElseGet(() -> {
+        return reject(headers, payload.eventNo(), payload.resource()).or(() -> requireProductNo(payload)).orElseGet(() -> {
             log.info("Webhook received: eventNo={}, productNo={}", payload.eventNo(), payload.resource().productNo());
             eventPublisher.publishEvent(
                     new ProductDeletedEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().productNo())

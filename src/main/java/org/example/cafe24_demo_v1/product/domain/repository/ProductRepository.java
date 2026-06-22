@@ -1,8 +1,8 @@
 package org.example.cafe24_demo_v1.product.domain.repository;
 
 import org.example.cafe24_demo_v1.product.domain.model.Product;
+import org.example.cafe24_demo_v1.product.domain.model.ProductPage;
 
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -12,7 +12,8 @@ public interface ProductRepository {
 
     Optional<Product> findByMallIdAndProductNo(String mallId, Long productNo);
 
-    List<Product> findAll();
+    /** mallId 기준으로 상품 목록을 페이지 단위로 조회한다. page는 0부터 시작한다. */
+    ProductPage findByMallId(String mallId, int page, int size);
 
     void save(Product product);
 

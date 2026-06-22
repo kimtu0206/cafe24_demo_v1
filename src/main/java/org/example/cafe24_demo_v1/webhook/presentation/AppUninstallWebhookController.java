@@ -34,7 +34,7 @@ public class AppUninstallWebhookController extends AbstractCafe24WebhookControll
             @RequestHeader Map<String, String> headers,
             @RequestBody Cafe24WebhookPayload payload) {
 
-        return reject(headers, payload).orElseGet(() -> {
+        return reject(headers, payload.eventNo(), payload.resource()).orElseGet(() -> {
             log.info("Webhook received: eventNo={}, mallId={}", payload.eventNo(), payload.resource().mallId());
             eventPublisher.publishEvent(
                     new AppUninstalledEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().clientId())

@@ -1,0 +1,154 @@
+package org.example.cafe24_demo_v1.order.infrastructure.external;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
+import org.example.cafe24_demo_v1.order.domain.model.Order;
+import org.example.cafe24_demo_v1.shared.config.Cafe24Properties;
+import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.RestTemplate;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.startsWith;
+import static org.springframework.http.HttpMethod.GET;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+
+class Cafe24OrderClientTest {
+
+    private MockRestServiceServer mockServer;
+    private Cafe24OrderClient client;
+
+    private final TokenCredential credential = new TokenCredential(
+            "access-token", "refresh-token", "Bearer", LocalDateTime.now().plusHours(1), LocalDateTime.now().plusDays(1)
+    );
+
+    @BeforeEach
+    void setUp() {
+        RestTemplate restTemplate = new RestTemplate();
+        mockServer = MockRestServiceServer.createServer(restTemplate);
+
+        Cafe24Properties properties = new Cafe24Properties();
+        properties.setMallId("mymall");
+        properties.setApiVersion("2024-06-01");
+
+        client = new Cafe24OrderClient(properties, restTemplate, new ObjectMapper());
+    }
+
+    @Test
+    void getOrders는_start_date와_end_date_파라미터를_yyyy_MM_dd_형식으로_보낸다() {
+        LocalDateTime updatedSince = LocalDateTime.of(2017, 1, 1, 0, 0);
+        mockServer.expect(requestTo(startsWith(
+                        "https://mymall.cafe24api.com/api/v2/admin/orders?start_date=2017-01-01&end_date=")))
+                .andExpect(method(GET))
+                .andRespond(withSuccess("{\"orders\": []}", MediaType.APPLICATION_JSON));
+
+        client.getOrders("mymall", updatedSince, 0, 100, credential);
+
+        mockServer.verify();
+    }
+
+    @Test
+    void getOrders는_응답을_도메인_모델로_변환하고_원본을_보존한다() {
+        // 실제 Cafe24 GET /admin/orders 응답 형태(주요 필드만 추림): order_status 없음, payment_method는 배열,
+        // 결제금액은 최상위 payment_amount, 구매자 이메일은 member_email
+        mockServer.expect(requestTo(startsWith("https://mymall.cafe24api.com/api/v2/admin/orders?")))
+                .andExpect(method(GET))
+                .andRespond(withSuccess("""
+                        {"orders": [
+                          {
+                            "order_id": "20170710-0000013",
+                            "member_id": "sampleid",
+                            "member_email": "sample@sample.com",
+                            "payment_amount": "30000.00",
+                            "payment_method": ["card", "cash"],
+                            "paid": "T",
+                            "canceled": "F",
+                            "order_date": "2018-07-04T11:21:35+09:00"
+                          }
+                        ]}
+                        """, MediaType.APPLICATION_JSON));
+
+        List<Order> orders = client.getOrders("mymall", LocalDateTime.now().minusMinutes(10), 0, 100, credential);
+
+        assertThat(orders).hasSize(1);
+        Order order = orders.get(0);
+        assertThat(order.getMallId()).isEqualTo("mymall");
+        assertThat(order.getOrderId()).isEqualTo("20170710-0000013");
+        assertThat(order.getOrderStatus()).isNull(); // 응답에 order_status가 없어 비즈니스 규칙 정해지기 전까지 null
+        assertThat(order.getBuyerName()).isNull();   // 개인정보 embed 미적용으로 null
+        assertThat(order.getBuyerEmail()).isEqualTo("sample@sample.com");
+        assertThat(order.getTotalAmount()).isEqualTo(new BigDecimal("30000.00"));
+        assertThat(order.getPaymentMethod()).isEqualTo("card,cash");
+        assertThat(order.getOrderedAt()).isEqualTo(OffsetDateTime.parse("2018-07-04T11:21:35+09:00").toLocalDateTime());
+        assertThat(order.getRawJson()).contains("20170710-0000013");
+        mockServer.verify();
+    }
+
+    @Test
+    void 주문이_없으면_빈_목록을_반환한다() {
+        mockServer.expect(requestTo(startsWith("https://mymall.cafe24api.com/api/v2/admin/orders?")))
+                .andRespond(withSuccess("{\"orders\": []}", MediaType.APPLICATION_JSON));
+
+        List<Order> orders = client.getOrders("mymall", LocalDateTime.now().minusMinutes(10), 0, 100, credential);
+
+        assertThat(orders).isEmpty();
+    }
+
+    @Test
+    void Cafe24가_에러를_반환하면_Cafe24ApiException을_던진다() {
+        mockServer.expect(requestTo(startsWith("https://mymall.cafe24api.com/api/v2/admin/orders?")))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST).body("{\"error\": \"invalid request\"}"));
+
+        assertThatThrownBy(() ->
+                client.getOrders("mymall", LocalDateTime.now().minusMinutes(10), 0, 100, credential)
+        ).isInstanceOf(Cafe24ApiException.class);
+    }
+
+    @Test
+    void getOrder는_order_id로_필터링해서_단건을_조회한다() {
+        mockServer.expect(requestTo("https://mymall.cafe24api.com/api/v2/admin/orders?order_id=20170710-0000013"))
+                .andExpect(method(GET))
+                .andRespond(withSuccess("""
+                        {"orders": [
+                          {
+                            "order_id": "20170710-0000013",
+                            "member_id": "sampleid",
+                            "member_email": "sample@sample.com",
+                            "payment_amount": "30000.00",
+                            "payment_method": ["card"],
+                            "order_date": "2018-07-04T11:21:35+09:00"
+                          }
+                        ]}
+                        """, MediaType.APPLICATION_JSON));
+
+        Optional<Order> order = client.getOrder("mymall", "20170710-0000013", credential);
+
+        assertThat(order).isPresent();
+        assertThat(order.get().getOrderId()).isEqualTo("20170710-0000013");
+        assertThat(order.get().getPaymentMethod()).isEqualTo("card");
+    }
+
+    @Test
+    void getOrder는_결과가_없으면_빈_Optional을_반환한다() {
+        mockServer.expect(requestTo("https://mymall.cafe24api.com/api/v2/admin/orders?order_id=missing"))
+                .andRespond(withSuccess("{\"orders\": []}", MediaType.APPLICATION_JSON));
+
+        Optional<Order> order = client.getOrder("mymall", "missing", credential);
+
+        assertThat(order).isEmpty();
+    }
+}

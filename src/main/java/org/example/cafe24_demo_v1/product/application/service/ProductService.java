@@ -8,6 +8,7 @@ import org.example.cafe24_demo_v1.product.application.command.CreateProductComma
 import org.example.cafe24_demo_v1.product.application.command.DeleteProductCommand;
 import org.example.cafe24_demo_v1.product.application.command.UpdateProductCommand;
 import org.example.cafe24_demo_v1.product.domain.model.Product;
+import org.example.cafe24_demo_v1.product.domain.model.ProductPage;
 import org.example.cafe24_demo_v1.product.domain.model.ProductRegistration;
 import org.example.cafe24_demo_v1.product.domain.repository.ProductRepository;
 import org.example.cafe24_demo_v1.product.domain.service.Cafe24ProductPort;
@@ -28,6 +29,7 @@ import java.util.List;
 public class ProductService {
 
     private static final int SYNC_PAGE_SIZE = 100;
+    private static final int MAX_PAGE_SIZE = 100;
 
     private final ProductRepository repository;
     private final Cafe24ProductPort cafe24ProductPort;
@@ -47,6 +49,13 @@ public class ProductService {
 
         repository.save(product);
         return product;
+    }
+
+    /** mallId 기준으로 로컬 DB에 저장된 상품 목록을 페이지 단위로 조회한다(Cafe24를 호출하지 않음). */
+    public ProductPage list(String mallId, int page, int size) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        return repository.findByMallId(mallId, safePage, safeSize);
     }
 
     /** Cafe24에서 기존 상품을 수정하고, 수정 결과를 로컬 DB에 반영한다(Upsert). */

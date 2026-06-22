@@ -6,6 +6,7 @@ import org.example.cafe24_demo_v1.product.application.command.CreateProductComma
 import org.example.cafe24_demo_v1.product.application.command.DeleteProductCommand;
 import org.example.cafe24_demo_v1.product.application.command.UpdateProductCommand;
 import org.example.cafe24_demo_v1.product.domain.model.Product;
+import org.example.cafe24_demo_v1.product.domain.model.ProductPage;
 import org.example.cafe24_demo_v1.product.domain.model.ProductRegistration;
 import org.example.cafe24_demo_v1.product.domain.model.ProductStatus;
 import org.example.cafe24_demo_v1.product.domain.repository.ProductRepository;
@@ -83,6 +84,35 @@ class ProductServiceTest {
         assertThat(existing.getProductName()).isEqualTo("수정된 상품");
         assertThat(existing.getPrice()).isEqualTo(new BigDecimal("2000"));
         verify(repository).save(existing);
+    }
+
+    @Test
+    void list는_repository에서_mallId_기준으로_페이지를_조회한다() {
+        ProductPage page = new ProductPage(List.of(product("mymall", 1L, "상품", "1000", "500", ProductStatus.ON_SALE)), 1L);
+        given(repository.findByMallId("mymall", 0, 20)).willReturn(page);
+
+        ProductPage result = productService.list("mymall", 0, 20);
+
+        assertThat(result.totalCount()).isEqualTo(1L);
+        assertThat(result.products()).hasSize(1);
+    }
+
+    @Test
+    void list는_size가_최대값을_넘으면_100으로_제한한다() {
+        given(repository.findByMallId("mymall", 0, 100)).willReturn(new ProductPage(List.of(), 0L));
+
+        productService.list("mymall", 0, 999);
+
+        verify(repository).findByMallId("mymall", 0, 100);
+    }
+
+    @Test
+    void list는_page가_음수면_0으로_보정한다() {
+        given(repository.findByMallId("mymall", 0, 20)).willReturn(new ProductPage(List.of(), 0L));
+
+        productService.list("mymall", -1, 20);
+
+        verify(repository).findByMallId("mymall", 0, 20);
     }
 
     @Test

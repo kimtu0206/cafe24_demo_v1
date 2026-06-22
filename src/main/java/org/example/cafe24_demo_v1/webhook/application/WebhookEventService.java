@@ -4,8 +4,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.authorization.application.command.RevokeAuthorizationCommand;
 import org.example.cafe24_demo_v1.authorization.application.service.AppAuthorizationService;
+import org.example.cafe24_demo_v1.order.application.service.OrderWebhookEventService;
 import org.example.cafe24_demo_v1.product.application.service.ProductService;
 import org.example.cafe24_demo_v1.webhook.domain.event.AppUninstalledEvent;
+import org.example.cafe24_demo_v1.webhook.domain.event.OrderCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductDeletedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductUpdatedEvent;
@@ -29,6 +31,7 @@ public class WebhookEventService {
 
     private final AppAuthorizationService authorizationService;
     private final ProductService productService;
+    private final OrderWebhookEventService orderWebhookEventService;
     private final WebhookEventRepository webhookEventRepository;
 
     /**
@@ -117,5 +120,17 @@ public class WebhookEventService {
 
         log.info("Product deleted: mallId={}, productNo={}", event.getMallId(), event.getProductNo());
         productService.deleteFromWebhook(event.getMallId(), event.getProductNo());
+    }
+
+    /**
+     * 주문 생성 이벤트 처리기.
+     * 다른 이벤트와 달리 여기서는 원본 payload 저장만 위임하고 끝낸다(Cafe24 재조회 없음).
+     * 멱등성 체크와 실제 order 테이블 반영은 order 컨텍스트가 자체 테이블(cafe24_order_webhook_event)로
+     * 전담하므로, 이 메서드는 단순히 위임만 한다.
+     */
+    @EventListener
+    public void onOrderCreated(OrderCreatedEvent event) {
+        log.info("Order created: mallId={}, orderId={}", event.getMallId(), event.getOrderId());
+        orderWebhookEventService.saveRaw(event.getMallId(), event.getEventNo(), event.getOrderId(), event.getPayload());
     }
 }

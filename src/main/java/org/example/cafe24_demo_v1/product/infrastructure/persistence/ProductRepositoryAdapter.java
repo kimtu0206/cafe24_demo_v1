@@ -2,7 +2,10 @@ package org.example.cafe24_demo_v1.product.infrastructure.persistence;
 
 import lombok.RequiredArgsConstructor;
 import org.example.cafe24_demo_v1.product.domain.model.Product;
+import org.example.cafe24_demo_v1.product.domain.model.ProductPage;
 import org.example.cafe24_demo_v1.product.domain.repository.ProductRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -26,10 +29,12 @@ public class ProductRepositoryAdapter implements ProductRepository {
     }
 
     @Override
-    public List<Product> findAll() {
-        return jpaRepository.findAll().stream()
+    public ProductPage findByMallId(String mallId, int page, int size) {
+        Page<ProductEntity> result = jpaRepository.findByMallId(mallId, PageRequest.of(page, size));
+        List<Product> products = result.getContent().stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
+        return new ProductPage(products, result.getTotalElements());
     }
 
     @Override

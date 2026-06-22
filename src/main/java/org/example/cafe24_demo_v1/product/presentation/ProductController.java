@@ -11,20 +11,24 @@ import org.example.cafe24_demo_v1.product.application.command.DeleteProductComma
 import org.example.cafe24_demo_v1.product.application.command.UpdateProductCommand;
 import org.example.cafe24_demo_v1.product.application.service.ProductService;
 import org.example.cafe24_demo_v1.product.domain.model.Product;
+import org.example.cafe24_demo_v1.product.domain.model.ProductPage;
 import org.example.cafe24_demo_v1.shared.config.Cafe24Properties;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -33,6 +37,16 @@ import java.math.BigDecimal;
 public class ProductController {
     private final ProductService productService;
     private final Cafe24Properties cafe24Properties;
+
+    @GetMapping
+    public ResponseEntity<ProductListResponse> list(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        ProductPage result = productService.list(cafe24Properties.getMallId(), page, size);
+        List<ProductResponse> products = result.products().stream().map(ProductResponse::from).toList();
+        return ResponseEntity.ok(new ProductListResponse(products, result.totalCount(), page, size));
+    }
 
     @PostMapping
     public ResponseEntity<ProductResponse> register(@Valid @RequestBody ProductRegisterRequest request) {
@@ -118,4 +132,6 @@ public class ProductController {
             );
         }
     }
+
+    private record ProductListResponse(List<ProductResponse> products, long totalCount, int page, int size) {}
 }
