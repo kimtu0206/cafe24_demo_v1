@@ -4,9 +4,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.authorization.application.command.RevokeAuthorizationCommand;
 import org.example.cafe24_demo_v1.authorization.application.service.AppAuthorizationService;
+import org.example.cafe24_demo_v1.carrier.application.service.CarrierService;
 import org.example.cafe24_demo_v1.order.application.service.OrderWebhookEventService;
 import org.example.cafe24_demo_v1.product.application.service.ProductService;
 import org.example.cafe24_demo_v1.webhook.domain.event.AppUninstalledEvent;
+import org.example.cafe24_demo_v1.webhook.domain.event.CarrierCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.OrderCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductDeletedEvent;
@@ -32,6 +34,7 @@ public class WebhookEventService {
     private final AppAuthorizationService authorizationService;
     private final ProductService productService;
     private final OrderWebhookEventService orderWebhookEventService;
+    private final CarrierService carrierService;
     private final WebhookEventRepository webhookEventRepository;
 
     /**
@@ -120,6 +123,28 @@ public class WebhookEventService {
 
         log.info("Product deleted: mallId={}, productNo={}", event.getMallId(), event.getProductNo());
         productService.deleteFromWebhook(event.getMallId(), event.getProductNo());
+    }
+
+    /**
+     * 배송사 등록 이벤트 처리기.
+     * eventNo + mallId + shippingCarrierCode 조합으로 중복 수신을 확인한 뒤,
+     * 최초 수신 시에만 Cafe24에서 배송사 상세를 다시 조회해 로컬 DB에 반영한다.
+     */
+    @Transactional
+    @EventListener
+    public void onCarrierCreated(CarrierCreatedEvent event) {
+        String resourceId = event.getShippingCarrierCode();
+
+        if (webhookEventRepository.exists(event.getEventNo(), event.getMallId(), resourceId)) {
+            log.info("Duplicate webhook ignored: eventNo={}, mallId={}, shippingCarrierCode={}",
+                    event.getEventNo(), event.getMallId(), resourceId);
+            return;
+        }
+
+        webhookEventRepository.save(event.getEventNo(), WebhookEventType.CARRIER_CREATED, event.getMallId(), resourceId);
+
+        log.info("Carrier created: mallId={}, shippingCarrierCode={}", event.getMallId(), resourceId);
+        carrierService.upsertFromWebhook(event.getMallId(), resourceId);
     }
 
     /**

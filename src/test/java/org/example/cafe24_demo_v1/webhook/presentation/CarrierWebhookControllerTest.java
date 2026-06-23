@@ -1,6 +1,6 @@
 package org.example.cafe24_demo_v1.webhook.presentation;
 
-import org.example.cafe24_demo_v1.webhook.domain.event.ProductCreatedEvent;
+import org.example.cafe24_demo_v1.webhook.domain.event.CarrierCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.infrastructure.Cafe24WebhookVerifier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,23 +21,23 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-class ProductWebhookControllerTest {
+class CarrierWebhookControllerTest {
 
     @Mock private Cafe24WebhookVerifier verifier;
     @Mock private ApplicationEventPublisher eventPublisher;
 
-    private ProductWebhookController controller;
+    private CarrierWebhookController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new ProductWebhookController(verifier, eventPublisher);
+        controller = new CarrierWebhookController(verifier, eventPublisher);
         given(verifier.verify("valid-key")).willReturn(true);
     }
 
     @Test
-    void productNo가_없으면_400을_반환하고_이벤트를_발행하지_않는다() {
+    void shippingCarrierCode가_없으면_400을_반환하고_이벤트를_발행하지_않는다() {
         Cafe24WebhookPayload payload = new Cafe24WebhookPayload(
-                90071, new Cafe24WebhookPayload.Resource("mymall", null, null, null, null, null)
+                90081, new Cafe24WebhookPayload.Resource("mymall", null, null, null, null, null)
         );
 
         ResponseEntity<Void> response = controller.created(headers(), payload);
@@ -47,19 +47,19 @@ class ProductWebhookControllerTest {
     }
 
     @Test
-    void productNo가_있으면_정상적으로_이벤트를_발행한다() {
+    void shippingCarrierCode가_있으면_정상적으로_이벤트를_발행한다() {
         Cafe24WebhookPayload payload = new Cafe24WebhookPayload(
-                90071, new Cafe24WebhookPayload.Resource("mymall", null, null, null, 1L, null)
+                90081, new Cafe24WebhookPayload.Resource("mymall", null, null, null, null, "01")
         );
 
         ResponseEntity<Void> response = controller.created(headers(), payload);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        ArgumentCaptor<ProductCreatedEvent> captor = ArgumentCaptor.forClass(ProductCreatedEvent.class);
+        ArgumentCaptor<CarrierCreatedEvent> captor = ArgumentCaptor.forClass(CarrierCreatedEvent.class);
         verify(eventPublisher).publishEvent(captor.capture());
-        assertThat(captor.getValue().getEventNo()).isEqualTo(90071);
+        assertThat(captor.getValue().getEventNo()).isEqualTo(90081);
         assertThat(captor.getValue().getMallId()).isEqualTo("mymall");
-        assertThat(captor.getValue().getProductNo()).isEqualTo(1L);
+        assertThat(captor.getValue().getShippingCarrierCode()).isEqualTo("01");
     }
 
     private Map<String, String> headers() {

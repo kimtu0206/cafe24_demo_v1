@@ -17,6 +17,7 @@ record Cafe24WebhookPayload(
             @JsonProperty("client_id") String clientId,
             @JsonProperty("app_name") String appName,
             @JsonProperty("deleted_date") String deletedDate, // 앱 삭제 이벤트의 경우 삭제 일시
-            @JsonProperty("product_no") Long productNo        // 상품 이벤트의 경우 상품 번호
+            @JsonProperty("product_no") Long productNo,       // 상품 이벤트의 경우 상품 번호
+            @JsonProperty("sc_id") String shippingCarrierCode // 배송사 이벤트의 경우 배송사 코드(Cafe24 웹훅은 REST API와 달리 sc_id로 보냄)
     ) {}
 }
