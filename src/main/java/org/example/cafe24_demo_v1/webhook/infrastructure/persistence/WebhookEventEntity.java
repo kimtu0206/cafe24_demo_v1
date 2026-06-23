@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(
-        name = "cafe24_webhook_event",
+        name = "cafe24_product_webhook_event",
         uniqueConstraints = @UniqueConstraint(columnNames = {"event_no", "mall_id", "resource_id"})
 )
 @Getter
