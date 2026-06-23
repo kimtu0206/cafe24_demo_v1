@@ -30,21 +30,6 @@ public class CarrierService {
     private final AppAuthorizationService authorizationService;
 
     /**
-     * Webhook으로 배송사 등록 알림을 받았을 때 호출한다.
-     * Cafe24 Webhook 알림에는 shippingCarrierCode만 담겨 있으므로 상세 정보를 다시 조회해 로컬 DB에 반영한다.
-     * 조회 시점에 Cafe24에 해당 배송사가 없으면(웹훅 수신 후 삭제 등) 동기화 없이 종료한다.
-     */
-    @Transactional
-    public void upsertFromWebhook(String mallId, String shippingCarrierCode) {
-        TokenCredential credential = authorizationService.getValidCredential(mallId);
-        cafe24CarrierPort.getCarrier(mallId, shippingCarrierCode, credential)
-                .ifPresentOrElse(
-                        this::upsert,
-                        () -> log.warn("Carrier not found, skip upsert: mallId={}, shippingCarrierCode={}", mallId, shippingCarrierCode)
-                );
-    }
-
-    /**
      * Cafe24 배송사 전체를 페이지 단위로 조회해 로컬 DB와 동기화한다.
      * Webhook 수신 여부와 무관하게 독립적으로 동작하는 안전망 역할이다(CarrierSyncScheduler가 주기 호출).
      * Cafe24 배송사 목록 API는 변경 시점 필터를 제공하지 않으므로, 매번 전체를 다시 조회한다.

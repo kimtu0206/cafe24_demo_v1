@@ -1,11 +1,13 @@
 package org.example.cafe24_demo_v1.webhook.application;
 
 import org.example.cafe24_demo_v1.authorization.application.service.AppAuthorizationService;
-import org.example.cafe24_demo_v1.carrier.application.service.CarrierService;
+import org.example.cafe24_demo_v1.carrier.domain.repository.CarrierWebhookEventRepository;
 import org.example.cafe24_demo_v1.order.application.service.OrderWebhookEventService;
 import org.example.cafe24_demo_v1.product.application.service.ProductService;
 import org.example.cafe24_demo_v1.webhook.domain.event.AppUninstalledEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.CarrierCreatedEvent;
+import org.example.cafe24_demo_v1.webhook.domain.event.CarrierDeletedEvent;
+import org.example.cafe24_demo_v1.webhook.domain.event.CarrierUpdatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.OrderCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductDeletedEvent;
@@ -29,15 +31,16 @@ class WebhookEventServiceTest {
     @Mock private AppAuthorizationService authorizationService;
     @Mock private ProductService productService;
     @Mock private OrderWebhookEventService orderWebhookEventService;
-    @Mock private CarrierService carrierService;
     @Mock private WebhookEventRepository webhookEventRepository;
+    @Mock private CarrierWebhookEventRepository carrierWebhookEventRepository;
 
     private WebhookEventService webhookEventService;
 
     @BeforeEach
     void setUp() {
         webhookEventService = new WebhookEventService(
-                authorizationService, productService, orderWebhookEventService, carrierService, webhookEventRepository
+                authorizationService, productService, orderWebhookEventService,
+                webhookEventRepository, carrierWebhookEventRepository
         );
     }
 
@@ -117,22 +120,57 @@ class WebhookEventServiceTest {
     }
 
     @Test
-    void 배송사_등록_이벤트는_Cafe24에서_상세를_다시_조회해_저장한다() {
-        given(webhookEventRepository.exists(90081, "mymall", "01")).willReturn(false);
+    void 배송사_등록_이벤트는_자체_이력_테이블에만_기록한다() {
+        given(carrierWebhookEventRepository.exists(90081, "mymall", "01")).willReturn(false);
 
         webhookEventService.onCarrierCreated(new CarrierCreatedEvent(90081, "mymall", "01"));
 
-        verify(webhookEventRepository).save(90081, WebhookEventType.CARRIER_CREATED, "mymall", "01");
-        verify(carrierService).upsertFromWebhook("mymall", "01");
+        verify(carrierWebhookEventRepository).save(90081, "CARRIER_CREATED", "mymall", "01");
     }
 
     @Test
     void 이미_처리한_배송사_등록_이벤트는_무시한다() {
-        given(webhookEventRepository.exists(90081, "mymall", "01")).willReturn(true);
+        given(carrierWebhookEventRepository.exists(90081, "mymall", "01")).willReturn(true);
 
         webhookEventService.onCarrierCreated(new CarrierCreatedEvent(90081, "mymall", "01"));
 
-        verify(carrierService, never()).upsertFromWebhook(ArgumentMatchers.any(), ArgumentMatchers.any());
+        verify(carrierWebhookEventRepository, never()).save(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any());
+    }
+
+    @Test
+    void 배송사_수정_이벤트는_자체_이력_테이블에만_기록한다() {
+        given(carrierWebhookEventRepository.exists(90082, "mymall", "01")).willReturn(false);
+
+        webhookEventService.onCarrierUpdated(new CarrierUpdatedEvent(90082, "mymall", "01"));
+
+        verify(carrierWebhookEventRepository).save(90082, "CARRIER_UPDATED", "mymall", "01");
+    }
+
+    @Test
+    void 이미_처리한_배송사_수정_이벤트는_무시한다() {
+        given(carrierWebhookEventRepository.exists(90082, "mymall", "01")).willReturn(true);
+
+        webhookEventService.onCarrierUpdated(new CarrierUpdatedEvent(90082, "mymall", "01"));
+
+        verify(carrierWebhookEventRepository, never()).save(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any());
+    }
+
+    @Test
+    void 배송사_삭제_이벤트는_자체_이력_테이블에만_기록한다() {
+        given(carrierWebhookEventRepository.exists(90083, "mymall", "01")).willReturn(false);
+
+        webhookEventService.onCarrierDeleted(new CarrierDeletedEvent(90083, "mymall", "01"));
+
+        verify(carrierWebhookEventRepository).save(90083, "CARRIER_DELETED", "mymall", "01");
+    }
+
+    @Test
+    void 이미_처리한_배송사_삭제_이벤트는_무시한다() {
+        given(carrierWebhookEventRepository.exists(90083, "mymall", "01")).willReturn(true);
+
+        webhookEventService.onCarrierDeleted(new CarrierDeletedEvent(90083, "mymall", "01"));
+
+        verify(carrierWebhookEventRepository, never()).save(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any());
     }
 
     @Test

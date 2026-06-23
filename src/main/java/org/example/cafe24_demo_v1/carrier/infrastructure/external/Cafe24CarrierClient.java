@@ -10,7 +10,6 @@ import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
@@ -19,7 +18,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -38,29 +36,6 @@ public class Cafe24CarrierClient implements Cafe24CarrierPort {
     public Cafe24CarrierClient(Cafe24Properties properties, RestTemplate restTemplate) {
         this.properties = properties;
         this.restTemplate = restTemplate;
-    }
-
-    /**
-     * Cafe24가 해당 코드의 배송사를 찾지 못하면(404) 빈 Optional을 반환한다.
-     * 웹훅이 가리키는 배송사가 조회 시점에 이미 삭제됐거나 존재하지 않는 경우가 있을 수 있으므로,
-     * 이를 오류가 아닌 "동기화할 대상 없음"으로 취급한다.
-     */
-    @Override
-    public Optional<Carrier> getCarrier(String mallId, String shippingCarrierCode, TokenCredential credential) {
-        String url = baseUrl(mallId) + "/carriers/" + shippingCarrierCode;
-
-        try {
-            CarrierCreateResponse response = exchange(
-                    url, HttpMethod.GET, new HttpEntity<>(headers(credential)), CarrierCreateResponse.class
-            );
-            return Optional.of(toDomain(mallId, response.getCarrier()));
-        } catch (Cafe24ApiException e) {
-            if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
-                log.warn("Carrier not found on Cafe24, skip sync: mallId={}, shippingCarrierCode={}", mallId, shippingCarrierCode);
-                return Optional.empty();
-            }
-            throw e;
-        }
     }
 
     /**

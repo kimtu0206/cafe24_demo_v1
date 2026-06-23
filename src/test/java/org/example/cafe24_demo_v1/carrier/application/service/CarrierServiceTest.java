@@ -17,10 +17,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -40,53 +38,6 @@ class CarrierServiceTest {
     @BeforeEach
     void setUp() {
         carrierService = new CarrierService(repository, cafe24CarrierPort, authorizationService);
-    }
-
-    @Test
-    void upsertFromWebhook은_기존_배송사가_있으면_갱신한다() {
-        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
-        Carrier snapshot = Carrier.register(
-                "mymall", null, "01", "변경된 이름", null, null, null, null, null, null,
-                ShippingType.INTERNATIONAL, false, false
-        );
-        given(cafe24CarrierPort.getCarrier("mymall", "01", credential)).willReturn(Optional.of(snapshot));
-
-        Carrier existing = Carrier.reconstitute(
-                10L, null, "mymall", "01", "기존 이름", null, null, null, null, null, null,
-                ShippingType.DOMESTIC, true, true, LocalDateTime.now(), LocalDateTime.now()
-        );
-        given(repository.findByMallIdAndShippingCarrierCode("mymall", "01")).willReturn(Optional.of(existing));
-
-        carrierService.upsertFromWebhook("mymall", "01");
-
-        assertThat(existing.getShippingCarrierName()).isEqualTo("변경된 이름");
-        assertThat(existing.getShippingType()).isEqualTo(ShippingType.INTERNATIONAL);
-        verify(repository).save(existing);
-    }
-
-    @Test
-    void upsertFromWebhook은_없는_배송사면_신규로_저장한다() {
-        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
-        Carrier snapshot = Carrier.register(
-                "mymall", null, "02", "신규 배송사", null, null, null, null, null, null,
-                ShippingType.DOMESTIC, true, true
-        );
-        given(cafe24CarrierPort.getCarrier("mymall", "02", credential)).willReturn(Optional.of(snapshot));
-        given(repository.findByMallIdAndShippingCarrierCode("mymall", "02")).willReturn(Optional.empty());
-
-        carrierService.upsertFromWebhook("mymall", "02");
-
-        verify(repository).save(snapshot);
-    }
-
-    @Test
-    void upsertFromWebhook은_Cafe24에_배송사가_없으면_아무것도_저장하지_않는다() {
-        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
-        given(cafe24CarrierPort.getCarrier("mymall", "58", credential)).willReturn(Optional.empty());
-
-        carrierService.upsertFromWebhook("mymall", "58");
-
-        verify(repository, never()).save(any());
     }
 
     @Test

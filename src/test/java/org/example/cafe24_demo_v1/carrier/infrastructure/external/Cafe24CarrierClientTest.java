@@ -12,7 +12,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestTemplate;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -46,44 +45,13 @@ class Cafe24CarrierClientTest {
     }
 
     @Test
-    void getCarrier은_응답을_도메인_모델로_변환한다() {
-        mockServer.expect(requestTo("https://mymall.cafe24api.com/api/v2/admin/carriers/01"))
-                .andExpect(method(HttpMethod.GET))
-                .andExpect(header("Authorization", "Bearer access-token"))
-                .andRespond(withSuccess("""
-                        {"carrier": {"carrier_id": 65, "shipping_carrier_code": "01", "shipping_carrier": "우체국",
-                        "default_shipping_fee": "12000", "shipping_type": "A",
-                        "default_shipping_carrier": "T", "shipping_fee_setting": "F"}}
-                        """, MediaType.APPLICATION_JSON));
-
-        Carrier carrier = client.getCarrier("mymall", "01", credential).orElseThrow();
-
-        assertThat(carrier.getCarrierId()).isEqualTo(65L);
-        assertThat(carrier.getShippingCarrierCode()).isEqualTo("01");
-        assertThat(carrier.getShippingCarrierName()).isEqualTo("우체국");
-        assertThat(carrier.getDefaultShippingFee()).isEqualTo(new BigDecimal("12000"));
-        assertThat(carrier.isDefaultCarrier()).isTrue();
-        assertThat(carrier.isShippingFeeSetting()).isFalse();
-        mockServer.verify();
-    }
-
-    @Test
     void Cafe24가_에러를_반환하면_Cafe24ApiException을_던진다() {
-        mockServer.expect(requestTo("https://mymall.cafe24api.com/api/v2/admin/carriers/01"))
+        mockServer.expect(requestTo("https://mymall.cafe24api.com/api/v2/admin/carriers?offset=0&limit=100"))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST).body("{\"error\": \"invalid request\"}"));
 
         assertThatThrownBy(() ->
-                client.getCarrier("mymall", "01", credential)
+                client.getCarriers("mymall", 0, 100, credential)
         ).isInstanceOf(Cafe24ApiException.class);
-    }
-
-    @Test
-    void Cafe24가_404를_반환하면_빈_Optional을_반환한다() {
-        mockServer.expect(requestTo("https://mymall.cafe24api.com/api/v2/admin/carriers/58"))
-                .andRespond(withStatus(HttpStatus.NOT_FOUND).body("{\"error\": {\"message\": \"not found\"}}"));
-
-        assertThat(client.getCarrier("mymall", "58", credential)).isEmpty();
-        mockServer.verify();
     }
 
     @Test

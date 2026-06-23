@@ -2,6 +2,8 @@ package org.example.cafe24_demo_v1.webhook.presentation;
 
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.webhook.domain.event.CarrierCreatedEvent;
+import org.example.cafe24_demo_v1.webhook.domain.event.CarrierDeletedEvent;
+import org.example.cafe24_demo_v1.webhook.domain.event.CarrierUpdatedEvent;
 import org.example.cafe24_demo_v1.webhook.infrastructure.Cafe24WebhookVerifier;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.ResponseEntity;
@@ -37,6 +39,28 @@ public class CarrierWebhookController extends AbstractCafe24WebhookController {
             log.info("Webhook received: eventNo={}, shippingCarrierCode={}", payload.eventNo(), payload.resource().shippingCarrierCode());
             eventPublisher.publishEvent(
                     new CarrierCreatedEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().shippingCarrierCode())
+            );
+            return ResponseEntity.ok().build();
+        });
+    }
+
+    @PostMapping("/updated")
+    public ResponseEntity<Void> updated(@RequestHeader Map<String, String> headers, @RequestBody Cafe24WebhookPayload payload) {
+        return reject(headers, payload.eventNo(), payload.resource()).or(() -> requireShippingCarrierCode(payload)).orElseGet(() -> {
+            log.info("Webhook received: eventNo={}, shippingCarrierCode={}", payload.eventNo(), payload.resource().shippingCarrierCode());
+            eventPublisher.publishEvent(
+                    new CarrierUpdatedEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().shippingCarrierCode())
+            );
+            return ResponseEntity.ok().build();
+        });
+    }
+
+    @PostMapping("/deleted")
+    public ResponseEntity<Void> deleted(@RequestHeader Map<String, String> headers, @RequestBody Cafe24WebhookPayload payload) {
+        return reject(headers, payload.eventNo(), payload.resource()).or(() -> requireShippingCarrierCode(payload)).orElseGet(() -> {
+            log.info("Webhook received: eventNo={}, shippingCarrierCode={}", payload.eventNo(), payload.resource().shippingCarrierCode());
+            eventPublisher.publishEvent(
+                    new CarrierDeletedEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().shippingCarrierCode())
             );
             return ResponseEntity.ok().build();
         });
