@@ -73,7 +73,7 @@ public class Cafe24OrderClient implements Cafe24OrderPort {
                 .queryParam("embed", EMBED_RESOURCES)
                 .toUriString();
 
-        String body = exchange(url, new HttpEntity<>(headers(credential)));
+        String body = exchange(mallId, url, new HttpEntity<>(headers(credential)));
         return parseOrders(mallId, body);
     }
 
@@ -85,7 +85,7 @@ public class Cafe24OrderClient implements Cafe24OrderPort {
                 .queryParam("embed", EMBED_RESOURCES)
                 .toUriString();
 
-        String body = exchange(url, new HttpEntity<>(headers(credential)));
+        String body = exchange(mallId, url, new HttpEntity<>(headers(credential)));
         return parseOrders(mallId, body).stream().findFirst();
     }
 
@@ -111,11 +111,12 @@ public class Cafe24OrderClient implements Cafe24OrderPort {
         return headers;
     }
 
-    private String exchange(String url, HttpEntity<?> request) {
+    private String exchange(String mallId, String url, HttpEntity<?> request) {
         try {
             return restTemplate.exchange(url, HttpMethod.GET, request, String.class).getBody();
         } catch (HttpStatusCodeException e) {
-            log.error("Cafe24 order API call failed: status={}, body={}", e.getStatusCode(), e.getResponseBodyAsString());
+            log.error("Cafe24 order API call failed: mallId={}, status={}", mallId, e.getStatusCode());
+            log.debug("Cafe24 order API error body: {}", e.getResponseBodyAsString());
             throw new Cafe24ApiException(
                     "Cafe24 order API call failed. status=" + e.getStatusCode(),
                     e.getStatusCode(),

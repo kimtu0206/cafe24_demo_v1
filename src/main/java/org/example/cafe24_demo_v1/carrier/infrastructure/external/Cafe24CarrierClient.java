@@ -52,7 +52,7 @@ public class Cafe24CarrierClient implements Cafe24CarrierPort {
                 .toUriString();
 
         CarrierListResponse response = exchange(
-                url, HttpMethod.GET, new HttpEntity<>(headers(credential)), CarrierListResponse.class
+                mallId, url, HttpMethod.GET, new HttpEntity<>(headers(credential)), CarrierListResponse.class
         );
 
         List<Cafe24CarrierPayload> carriers = response.getCarriers();
@@ -87,7 +87,7 @@ public class Cafe24CarrierClient implements Cafe24CarrierPort {
         CarrierCreateRequest body = new CarrierCreateRequest(payload);
 
         CarrierCreateResponse response = exchange(
-                url, HttpMethod.POST, new HttpEntity<>(body, headers(credential)), CarrierCreateResponse.class
+                mallId, url, HttpMethod.POST, new HttpEntity<>(body, headers(credential)), CarrierCreateResponse.class
         );
         return toDomain(mallId, response.getCarrier());
     }
@@ -105,11 +105,12 @@ public class Cafe24CarrierClient implements Cafe24CarrierPort {
         return headers;
     }
 
-    private <T> T exchange(String url, HttpMethod method, HttpEntity<?> request, Class<T> responseType) {
+    private <T> T exchange(String mallId, String url, HttpMethod method, HttpEntity<?> request, Class<T> responseType) {
         try {
             return restTemplate.exchange(url, method, request, responseType).getBody();
         } catch (HttpStatusCodeException e) {
-            log.error("Cafe24 carrier API call failed: status={}, body={}", e.getStatusCode(), e.getResponseBodyAsString());
+            log.error("Cafe24 carrier API call failed: mallId={}, status={}", mallId, e.getStatusCode());
+            log.debug("Cafe24 carrier API error body: {}", e.getResponseBodyAsString());
             throw new Cafe24ApiException(
                     "Cafe24 carrier API call failed. status=" + e.getStatusCode(),
                     e.getStatusCode(),

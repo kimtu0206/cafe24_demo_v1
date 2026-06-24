@@ -45,7 +45,7 @@ public class Cafe24ProductClient implements Cafe24ProductPort {
         ProductCreateRequest body = new ProductCreateRequest(registration);
 
         ProductCreateResponse response = exchange(
-                url, HttpMethod.POST, new HttpEntity<>(body, headers(credential)), ProductCreateResponse.class
+                mallId, url, HttpMethod.POST, new HttpEntity<>(body, headers(credential)), ProductCreateResponse.class
         );
 
         log.info("Product created: mallId={}, productNo={}", mallId, response.getProduct().getProductNo());
@@ -57,7 +57,7 @@ public class Cafe24ProductClient implements Cafe24ProductPort {
         String url = baseUrl(mallId) + "/products/" + productNo;
 
         ProductCreateResponse response = exchange(
-                url, HttpMethod.GET, new HttpEntity<>(headers(credential)), ProductCreateResponse.class
+                mallId, url, HttpMethod.GET, new HttpEntity<>(headers(credential)), ProductCreateResponse.class
         );
 
         return toDomain(mallId, response.getProduct());
@@ -69,7 +69,7 @@ public class Cafe24ProductClient implements Cafe24ProductPort {
         ProductUpdateRequest body = new ProductUpdateRequest(registration);
 
         ProductCreateResponse response = exchange(
-                url, HttpMethod.PUT, new HttpEntity<>(body, headers(credential)), ProductCreateResponse.class
+                mallId, url, HttpMethod.PUT, new HttpEntity<>(body, headers(credential)), ProductCreateResponse.class
         );
 
         log.info("Product updated: mallId={}, productNo={}", mallId, productNo);
@@ -82,7 +82,7 @@ public class Cafe24ProductClient implements Cafe24ProductPort {
                 .queryParam("shop_no", 1)
                 .toUriString();
 
-        exchange(url, HttpMethod.DELETE, new HttpEntity<>(headers(credential)), Void.class);
+        exchange(mallId, url, HttpMethod.DELETE, new HttpEntity<>(headers(credential)), Void.class);
         log.info("Product deleted: mallId={}, productNo={}", mallId, productNo);
     }
 
@@ -94,7 +94,7 @@ public class Cafe24ProductClient implements Cafe24ProductPort {
                 .toUriString();
 
         ProductListResponse response = exchange(
-                url, HttpMethod.GET, new HttpEntity<>(headers(credential)), ProductListResponse.class
+                mallId, url, HttpMethod.GET, new HttpEntity<>(headers(credential)), ProductListResponse.class
         );
 
         List<Cafe24ProductPayload> products = response.getProducts();
@@ -119,11 +119,12 @@ public class Cafe24ProductClient implements Cafe24ProductPort {
         return headers;
     }
 
-    private <T> T exchange(String url, HttpMethod method, HttpEntity<?> request, Class<T> responseType) {
+    private <T> T exchange(String mallId, String url, HttpMethod method, HttpEntity<?> request, Class<T> responseType) {
         try {
             return restTemplate.exchange(url, method, request, responseType).getBody();
         } catch (HttpStatusCodeException e) {
-            log.error("Cafe24 product API call failed: status={}, body={}", e.getStatusCode(), e.getResponseBodyAsString());
+            log.error("Cafe24 product API call failed: mallId={}, status={}", mallId, e.getStatusCode());
+            log.debug("Cafe24 product API error body: {}", e.getResponseBodyAsString());
             throw new Cafe24ApiException(
                     "Cafe24 product API call failed. status=" + e.getStatusCode(),
                     e.getStatusCode(),
