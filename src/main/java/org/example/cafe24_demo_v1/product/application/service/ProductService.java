@@ -38,8 +38,11 @@ public class ProductService {
     private final Cafe24ProductPort cafe24ProductPort;
     private final AppAuthorizationService authorizationService;
 
-    /** Cafe24에 신규 상품을 등록하고, 등록 결과(product_no, 상품명, 판매가, 상태)를 로컬 DB에 저장한다. */
-    @Transactional
+    /**
+     * Cafe24에 신규 상품을 등록하고, 등록 결과(product_no, 상품명, 판매가, 상태)를 로컬 DB에 저장한다.
+     * Cafe24 호출(외부 I/O)에는 트랜잭션을 걸지 않는다 — DB 커넥션을 외부 응답 대기 시간만큼 점유하지
+     * 않기 위함이다(syncFromCafe24와 동일한 이유).
+     */
     public Product register(CreateProductCommand command) {
         TokenCredential credential = authorizationService.getValidCredential(command.mallId());
 
@@ -61,8 +64,11 @@ public class ProductService {
         return repository.findByMallId(mallId, safePage, safeSize);
     }
 
-    /** Cafe24에서 기존 상품을 수정하고, 수정 결과를 로컬 DB에 반영한다(Upsert). */
-    @Transactional
+    /**
+     * Cafe24에서 기존 상품을 수정하고, 수정 결과를 로컬 DB에 반영한다(Upsert).
+     * Cafe24 호출(외부 I/O)에는 트랜잭션을 걸지 않는다 — DB 커넥션을 외부 응답 대기 시간만큼 점유하지
+     * 않기 위함이다(syncFromCafe24와 동일한 이유).
+     */
     public Product update(UpdateProductCommand command) {
         TokenCredential credential = authorizationService.getValidCredential(command.mallId());
 
@@ -77,8 +83,11 @@ public class ProductService {
         return updated;
     }
 
-    /** Cafe24에서 상품을 삭제하고, 로컬 DB에서도 동일 상품을 삭제한다. */
-    @Transactional
+    /**
+     * Cafe24에서 상품을 삭제하고, 로컬 DB에서도 동일 상품을 삭제한다.
+     * Cafe24 호출(외부 I/O)에는 트랜잭션을 걸지 않는다 — DB 커넥션을 외부 응답 대기 시간만큼 점유하지
+     * 않기 위함이다(syncFromCafe24와 동일한 이유).
+     */
     public void delete(DeleteProductCommand command) {
         TokenCredential credential = authorizationService.getValidCredential(command.mallId());
 
@@ -89,8 +98,9 @@ public class ProductService {
     /**
      * Webhook으로 상품 생성/수정 알림을 받았을 때 호출한다.
      * Cafe24 Webhook 알림에는 product_no만 담겨 있으므로 상세 정보를 다시 조회해 로컬 DB에 반영한다.
+     * Cafe24 호출(외부 I/O)에는 트랜잭션을 걸지 않는다 — DB 커넥션을 외부 응답 대기 시간만큼 점유하지
+     * 않기 위함이다(syncFromCafe24와 동일한 이유).
      */
-    @Transactional
     public void upsertFromWebhook(String mallId, Long productNo) {
         TokenCredential credential = authorizationService.getValidCredential(mallId);
         Product snapshot = cafe24ProductPort.getProduct(mallId, productNo, credential);
@@ -127,7 +137,7 @@ public class ProductService {
             for (Product snapshot : page) {
                 seenProductNos.add(snapshot.getProductNo());
                 try {
-                    upsertWithConflictFallback(snapshot);
+                    upsert(snapshot);
                     syncedCount++;
                 } catch (Exception e) {
                     log.error("Product sync 중 1건 실패, 다음 건 계속 진행: mallId={}, productNo={}",
@@ -169,25 +179,20 @@ public class ProductService {
         }
     }
 
-    /** Cafe24 스냅샷을 로컬 DB에 반영한다. 이미 있으면 갱신, 없으면 신규 저장(Upsert). */
-    private void upsert(Product snapshot) {
-        findAndApply(snapshot);
-    }
-
     /**
-     * syncFromCafe24 전용 upsert. (mall_id, product_no) unique 제약 때문에, 같은 상품을 동시에
-     * 반영하는 다른 경로(Webhook 등)와 경쟁하면 INSERT가 DataIntegrityViolationException으로 실패할
-     * 수 있다. 이 경우 다른 트랜잭션이 먼저 넣은 행을 재조회해 갱신으로 폴백한다(Order.upsert와 동일한
-     * 패턴). syncFromCafe24는 @Transactional이 없어 save() 호출마다 독립된 트랜잭션으로 즉시
-     * flush되므로 이 폴백이 안전하게 동작한다. update()/upsertFromWebhook()은 @Transactional로
-     * 감싸여 있어 같은 폴백을 적용하면 트랜잭션이 rollback-only로 마킹돼 폴백 자체가 무효화될 수
-     * 있으므로 적용하지 않는다.
+     * Cafe24 스냅샷을 로컬 DB에 반영한다. 이미 있으면 갱신, 없으면 신규 저장(Upsert).
+     *
+     * (mall_id, product_no) unique 제약 때문에, 같은 상품을 동시에 반영하는 다른 경로
+     * (syncFromCafe24/update/Webhook 등)와 경쟁하면 INSERT가 DataIntegrityViolationException으로
+     * 실패할 수 있다. 이 경우 다른 트랜잭션이 먼저 넣은 행을 재조회해 갱신으로 폴백한다(Order.upsert와
+     * 동일한 패턴). 이 메서드의 모든 호출부가 @Transactional 없이 호출되어 save()마다 독립된
+     * 트랜잭션으로 즉시 flush되므로 이 폴백이 안전하게 동작한다.
      */
-    private void upsertWithConflictFallback(Product snapshot) {
+    private void upsert(Product snapshot) {
         try {
             findAndApply(snapshot);
         } catch (DataIntegrityViolationException e) {
-            log.info("Product sync 중 동시 삽입 경쟁으로 충돌, 재조회 후 갱신으로 폴백: mallId={}, productNo={}",
+            log.info("Product 동시 삽입 경쟁으로 충돌, 재조회 후 갱신으로 폴백: mallId={}, productNo={}",
                     snapshot.getMallId(), snapshot.getProductNo());
             repository.findByMallIdAndProductNo(snapshot.getMallId(), snapshot.getProductNo())
                     .ifPresent(existing -> applySnapshotAndSave(existing, snapshot));

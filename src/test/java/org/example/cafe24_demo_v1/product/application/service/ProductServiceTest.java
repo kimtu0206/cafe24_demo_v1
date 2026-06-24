@@ -89,6 +89,45 @@ class ProductServiceTest {
     }
 
     @Test
+    void update은_동시_삽입_경쟁으로_충돌하면_재조회후_갱신으로_폴백한다() {
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        Product updated = product("mymall", 1L, "수정된 상품", "2000", "900", ProductStatus.ON_SALE);
+        given(cafe24ProductPort.updateProduct(eq("mymall"), eq(1L), any(ProductRegistration.class), eq(credential)))
+                .willReturn(updated);
+
+        Product concurrentlyInserted = existingProduct(10L, 1L, "mymall", "기존 상품", "1000", "500", ProductStatus.ON_SALE);
+        given(repository.findByMallIdAndProductNo("mymall", 1L))
+                .willReturn(Optional.empty(), Optional.of(concurrentlyInserted));
+        willThrow(new DataIntegrityViolationException("duplicate entry")).given(repository).save(updated);
+
+        productService.update(new UpdateProductCommand(
+                "mymall", 1L, "수정된 상품", new BigDecimal("2000"), new BigDecimal("900"),
+                null, null, null, null, null, null, null
+        ));
+
+        assertThat(concurrentlyInserted.getProductName()).isEqualTo("수정된 상품");
+        verify(repository).save(concurrentlyInserted);
+    }
+
+    @Test
+    void upsertFromWebhook은_동시_삽입_경쟁으로_충돌하면_재조회후_갱신으로_폴백한다() {
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        Product snapshot = product("mymall", 1L, "변경된 이름", "2000", "900", ProductStatus.SUSPENDED);
+        given(cafe24ProductPort.getProduct("mymall", 1L, credential)).willReturn(snapshot);
+
+        Product concurrentlyInserted = existingProduct(10L, 1L, "mymall", "기존 이름", "1000", "500", ProductStatus.ON_SALE);
+        given(repository.findByMallIdAndProductNo("mymall", 1L))
+                .willReturn(Optional.empty(), Optional.of(concurrentlyInserted));
+        willThrow(new DataIntegrityViolationException("duplicate entry")).given(repository).save(snapshot);
+
+        productService.upsertFromWebhook("mymall", 1L);
+
+        assertThat(concurrentlyInserted.getProductName()).isEqualTo("변경된 이름");
+        assertThat(concurrentlyInserted.getStatus()).isEqualTo(ProductStatus.SUSPENDED);
+        verify(repository).save(concurrentlyInserted);
+    }
+
+    @Test
     void list는_repository에서_mallId_기준으로_페이지를_조회한다() {
         ProductPage page = new ProductPage(List.of(product("mymall", 1L, "상품", "1000", "500", ProductStatus.ON_SALE)), 1L);
         given(repository.findByMallId("mymall", 0, 20)).willReturn(page);
