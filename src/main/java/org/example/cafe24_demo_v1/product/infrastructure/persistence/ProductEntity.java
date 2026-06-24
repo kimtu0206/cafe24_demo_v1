@@ -65,6 +65,9 @@ class ProductEntity {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    @Column(name = "missing_since")
+    private LocalDateTime missingSince;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

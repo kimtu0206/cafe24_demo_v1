@@ -215,6 +215,51 @@ class ProductServiceTest {
         verify(repository).save(concurrentlyInserted);
     }
 
+    @Test
+    void syncFromCafe24는_이번에_처음_누락된_상품은_삭제하지_않고_STALE만_표시한다() {
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        given(cafe24ProductPort.getProducts("mymall", 0, 100, credential)).willReturn(List.of());
+
+        Product missingNow = existingProduct(10L, 1L, "mymall", "상품", "1000", "500", ProductStatus.ON_SALE, null);
+        given(repository.findAllByMallId("mymall")).willReturn(List.of(missingNow));
+
+        productService.syncFromCafe24("mymall");
+
+        assertThat(missingNow.getMissingSince()).isNotNull();
+        verify(repository).save(missingNow);
+        verify(repository, never()).deleteByMallIdAndProductNo(any(), any());
+    }
+
+    @Test
+    void syncFromCafe24는_연속으로_두번_누락된_상품을_로컬에서_삭제한다() {
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        given(cafe24ProductPort.getProducts("mymall", 0, 100, credential)).willReturn(List.of());
+
+        Product alreadyStale = existingProduct(10L, 1L, "mymall", "상품", "1000", "500", ProductStatus.ON_SALE, LocalDateTime.now().minusDays(1));
+        given(repository.findAllByMallId("mymall")).willReturn(List.of(alreadyStale));
+
+        productService.syncFromCafe24("mymall");
+
+        verify(repository).deleteByMallIdAndProductNo("mymall", 1L);
+        verify(repository, never()).save(alreadyStale);
+    }
+
+    @Test
+    void syncFromCafe24는_누락됐다가_다시_나타난_상품의_missingSince를_초기화한다() {
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        Product snapshot = product("mymall", 1L, "상품", "1000", "500", ProductStatus.ON_SALE);
+        given(cafe24ProductPort.getProducts("mymall", 0, 100, credential)).willReturn(List.of(snapshot));
+
+        Product reappeared = existingProduct(10L, 1L, "mymall", "상품", "1000", "500", ProductStatus.ON_SALE, LocalDateTime.now().minusDays(1));
+        given(repository.findByMallIdAndProductNo("mymall", 1L)).willReturn(Optional.of(reappeared));
+        given(repository.findAllByMallId("mymall")).willReturn(List.of(reappeared));
+
+        productService.syncFromCafe24("mymall");
+
+        assertThat(reappeared.getMissingSince()).isNull();
+        verify(repository, never()).deleteByMallIdAndProductNo(any(), any());
+    }
+
     private List<Product> fixedSizeProducts(int size, long startProductNo) {
         List<Product> products = new ArrayList<>();
         for (int i = 0; i < size; i++) {
@@ -234,9 +279,13 @@ class ProductServiceTest {
     }
 
     private Product existingProduct(Long id, Long productNo, String mallId, String productName, String price, String supplyPrice, ProductStatus status) {
+        return existingProduct(id, productNo, mallId, productName, price, supplyPrice, status, null);
+    }
+
+    private Product existingProduct(Long id, Long productNo, String mallId, String productName, String price, String supplyPrice, ProductStatus status, LocalDateTime missingSince) {
         return Product.reconstitute(
                 id, productNo, mallId, productName, new BigDecimal(price), new BigDecimal(supplyPrice), status,
-                null, null, null, null, null, null, null, LocalDateTime.now(), LocalDateTime.now()
+                null, null, null, null, null, null, null, LocalDateTime.now(), LocalDateTime.now(), missingSince
         );
     }
 }

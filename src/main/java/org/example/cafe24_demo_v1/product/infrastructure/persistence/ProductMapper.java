@@ -28,7 +28,8 @@ class ProductMapper {
                 entity.getDetailImage(),
                 entity.getImageUploadType(),
                 entity.getCreatedAt(),
-                entity.getUpdatedAt()
+                entity.getUpdatedAt(),
+                entity.getMissingSince()
         );
     }
 
@@ -51,6 +52,7 @@ class ProductMapper {
         entity.setImageUploadType(domain.getImageUploadType());
         entity.setCreatedAt(domain.getCreatedAt());
         entity.setUpdatedAt(domain.getUpdatedAt());
+        entity.setMissingSince(domain.getMissingSince());
         return entity;
     }
 }

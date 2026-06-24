@@ -31,6 +31,7 @@ public class Product {
     private String imageUploadType;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime missingSince;   // null이면 정상, 값이 있으면 직전 전체 동기화에서 Cafe24 응답에 없었음(1차 누락)
 
     private Product() {}
 
@@ -86,7 +87,8 @@ public class Product {
             String detailImage,
             String imageUploadType,
             LocalDateTime createdAt,
-            LocalDateTime updatedAt
+            LocalDateTime updatedAt,
+            LocalDateTime missingSince
     ) {
         Product product = new Product();
         product.id = id;
@@ -105,6 +107,7 @@ public class Product {
         product.imageUploadType = imageUploadType;
         product.createdAt = createdAt;
         product.updatedAt = updatedAt;
+        product.missingSince = missingSince;
         return product;
     }
 
@@ -139,6 +142,12 @@ public class Product {
         this.detailImage = detailImage;
         this.imageUploadType = imageUploadType;
         this.updatedAt = LocalDateTime.now();
+        this.missingSince = null;
+    }
+
+    /** 전체 동기화에서 Cafe24 응답에 보이지 않을 때 호출한다. 처음 누락된 시점만 기록한다. */
+    public void markMissing() {
+        this.missingSince = LocalDateTime.now();
     }
 
     // 패키지 내부에서만 호출 가능 — DB 저장 후 생성된 PK를 주입할 때 사용

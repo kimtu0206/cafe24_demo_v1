@@ -55,4 +55,32 @@ class ProductTest {
         assertThat(product.getDetailImage()).isEqualTo("/new.jpg");
         assertThat(product.getImageUploadType()).isEqualTo("B");
     }
+
+    @Test
+    void markMissing으로_누락_시점을_기록할_수_있다() {
+        Product product = Product.register(
+                "mymall", 100L, "테스트 상품", new BigDecimal("10000"), new BigDecimal("5000"), ProductStatus.ON_SALE,
+                null, null, null, null, null, null, null
+        );
+
+        product.markMissing();
+
+        assertThat(product.getMissingSince()).isNotNull();
+    }
+
+    @Test
+    void applySnapshot을_적용하면_missingSince가_초기화된다() {
+        Product product = Product.register(
+                "mymall", 100L, "테스트 상품", new BigDecimal("10000"), new BigDecimal("5000"), ProductStatus.ON_SALE,
+                null, null, null, null, null, null, null
+        );
+        product.markMissing();
+
+        product.applySnapshot(
+                "테스트 상품", new BigDecimal("10000"), new BigDecimal("5000"), ProductStatus.ON_SALE,
+                null, null, null, null, null, null, null
+        );
+
+        assertThat(product.getMissingSince()).isNull();
+    }
 }

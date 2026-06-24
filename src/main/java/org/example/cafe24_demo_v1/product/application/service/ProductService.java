@@ -16,7 +16,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 상품(Product) 관련 유즈케이스를 조율하는 애플리케이션 서비스.
@@ -106,8 +108,8 @@ public class ProductService {
 
     /**
      * Cafe24 상품 전체를 페이지 단위로 조회해 로컬 DB와 동기화한다.
-     * 신규/변경 상품만 반영하고, 로컬에만 있고 Cafe24에는 없는 상품은 그대로 둔다.
-     * 매일 23시 ProductSyncScheduler가 호출한다.
+     * 신규/변경 상품은 upsert하고, Cafe24 응답에 없는(로컬에만 남은) 상품은
+     * reconcileMissingProducts로 단계적으로 정리한다. 매일 23시 ProductSyncScheduler가 호출한다.
      *
      * Cafe24 호출(외부 I/O)에는 트랜잭션을 걸지 않는다 — DB 커넥션을 외부 응답 대기 시간만큼
      * 점유하지 않기 위함이다(Order와 동일한 이유). 한 건의 upsert가 실패해도 나머지 건은 계속
@@ -118,10 +120,12 @@ public class ProductService {
 
         int offset = 0;
         int syncedCount = 0;
+        Set<Long> seenProductNos = new HashSet<>();
         List<Product> page;
         do {
             page = cafe24ProductPort.getProducts(mallId, offset, SYNC_PAGE_SIZE, credential);
             for (Product snapshot : page) {
+                seenProductNos.add(snapshot.getProductNo());
                 try {
                     upsertWithConflictFallback(snapshot);
                     syncedCount++;
@@ -133,7 +137,36 @@ public class ProductService {
             offset += SYNC_PAGE_SIZE;
         } while (page.size() == SYNC_PAGE_SIZE);
 
+        reconcileMissingProducts(mallId, seenProductNos);
+
         log.info("Product sync finished: mallId={}, syncedCount={}", mallId, syncedCount);
+    }
+
+    /**
+     * 이번 전체 동기화에서 Cafe24 응답에 없었던 로컬 상품을 정리한다.
+     * 1차 누락(missingSince가 null)이면 STALE 표시만 하고, 이미 STALE인데 또 누락되면(2회 연속)
+     * Cafe24에서 실제로 삭제된 것으로 보고 로컬에서도 삭제한다. 다시 나타나면 upsert 경로의
+     * applySnapshot이 missingSince를 초기화하므로 별도 복구 처리는 필요 없다.
+     */
+    private void reconcileMissingProducts(String mallId, Set<Long> seenProductNos) {
+        for (Product local : repository.findAllByMallId(mallId)) {
+            if (seenProductNos.contains(local.getProductNo())) {
+                continue;
+            }
+            try {
+                if (local.getMissingSince() == null) {
+                    local.markMissing();
+                    repository.save(local);
+                    log.info("Product 1차 누락 감지, STALE 처리: mallId={}, productNo={}", mallId, local.getProductNo());
+                } else {
+                    repository.deleteByMallIdAndProductNo(mallId, local.getProductNo());
+                    log.info("Product 2회 연속 누락 확인, 로컬 삭제: mallId={}, productNo={}", mallId, local.getProductNo());
+                }
+            } catch (Exception e) {
+                log.error("Product 누락 보정 중 1건 실패, 다음 건 계속 진행: mallId={}, productNo={}",
+                        mallId, local.getProductNo(), e);
+            }
+        }
     }
 
     /** Cafe24 스냅샷을 로컬 DB에 반영한다. 이미 있으면 갱신, 없으면 신규 저장(Upsert). */

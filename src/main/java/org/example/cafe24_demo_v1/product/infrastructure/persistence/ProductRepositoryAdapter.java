@@ -38,6 +38,13 @@ public class ProductRepositoryAdapter implements ProductRepository {
     }
 
     @Override
+    public List<Product> findAllByMallId(String mallId) {
+        return jpaRepository.findAllByMallId(mallId).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public void save(Product product) {
         ProductEntity entity = mapper.toEntity(product);
         ProductEntity saved = jpaRepository.save(entity);
