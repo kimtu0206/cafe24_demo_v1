@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -164,6 +165,25 @@ class OrderServiceTest {
 
         assertThat(concurrentlyInserted.getOrderStatus()).isEqualTo("N40");
         verify(repository).save(concurrentlyInserted);
+    }
+
+    @Test
+    void backfillFromCafe24_usesRequestedDateRangeAndPagesUntilLastPage() {
+        LocalDate startDate = LocalDate.of(2026, 6, 1);
+        LocalDate endDate = LocalDate.of(2026, 6, 24);
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+
+        List<Order> fullPage = fixedSizeOrders(100, "B");
+        List<Order> lastPage = fixedSizeOrders(1, "C");
+        given(cafe24OrderPort.getOrders("mymall", startDate, endDate, 0, 100, credential)).willReturn(fullPage);
+        given(cafe24OrderPort.getOrders("mymall", startDate, endDate, 100, 100, credential)).willReturn(lastPage);
+        given(repository.findByMallIdAndOrderId(any(), any())).willReturn(Optional.empty());
+
+        orderService.backfillFromCafe24("mymall", startDate, endDate);
+
+        verify(cafe24OrderPort).getOrders("mymall", startDate, endDate, 0, 100, credential);
+        verify(cafe24OrderPort).getOrders("mymall", startDate, endDate, 100, 100, credential);
+        verify(repository, times(101)).save(any());
     }
 
     private List<Order> fixedSizeOrders(int size, String orderIdPrefix) {

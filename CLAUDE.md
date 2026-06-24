@@ -85,11 +85,13 @@ infrastructure
 
 위 4계층 외 새로운 최상위 패키지를 생성하지 않는다.
 
+## webhook Rules
+- 
+- Cafe24 Webhook은 누락될 수 있다고 가정한다.
+- Webhook은 Trigger 역할만 수행한다.
 
 ## Order Rules
 
-- Cafe24 Webhook은 누락될 수 있다고 가정한다.
-- Webhook은 Trigger 역할만 수행한다.
 - 주문 데이터의 Source of Truth는 Cafe24 Orders API이다.
 - Webhook 데이터만으로 주문 상태를 결정하지 않는다.
 - 모든 주문 동기화는 멱등성을 보장해야 한다.

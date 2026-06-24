@@ -3,6 +3,7 @@ package org.example.cafe24_demo_v1.order.domain.service;
 import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
 import org.example.cafe24_demo_v1.order.domain.model.Order;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -17,6 +18,8 @@ public interface Cafe24OrderPort {
 
     /** updatedSince(주문 수정일시) 이후 변경된 주문을 offset/limit 페이지네이션으로 조회한다. */
     List<Order> getOrders(String mallId, LocalDateTime updatedSince, int offset, int limit, TokenCredential credential);
+
+    List<Order> getOrders(String mallId, LocalDate startDate, LocalDate endDate, int offset, int limit, TokenCredential credential);
 
     /** orderId로 Cafe24에 등록된 주문 1건을 조회한다. Webhook 처리 시 상세를 다시 조회할 때 사용한다. */
     Optional<Order> getOrder(String mallId, String orderId, TokenCredential credential);

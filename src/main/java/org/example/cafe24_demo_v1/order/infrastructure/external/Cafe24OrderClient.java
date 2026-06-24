@@ -20,6 +20,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
@@ -59,9 +60,14 @@ public class Cafe24OrderClient implements Cafe24OrderPort {
 
     @Override
     public List<Order> getOrders(String mallId, LocalDateTime updatedSince, int offset, int limit, TokenCredential credential) {
+        return getOrders(mallId, updatedSince.toLocalDate(), LocalDate.now(), offset, limit, credential);
+    }
+
+    @Override
+    public List<Order> getOrders(String mallId, LocalDate startDate, LocalDate endDate, int offset, int limit, TokenCredential credential) {
         String url = UriComponentsBuilder.fromUriString(baseUrl(mallId) + "/orders")
-                .queryParam("start_date", updatedSince.format(SEARCH_DATE_FORMAT))
-                .queryParam("end_date", LocalDateTime.now().format(SEARCH_DATE_FORMAT))
+                .queryParam("start_date", startDate.format(SEARCH_DATE_FORMAT))
+                .queryParam("end_date", endDate.format(SEARCH_DATE_FORMAT))
                 .queryParam("offset", offset)
                 .queryParam("limit", limit)
                 .queryParam("embed", EMBED_RESOURCES)
