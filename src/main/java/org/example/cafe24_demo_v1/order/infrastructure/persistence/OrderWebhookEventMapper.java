@@ -1,6 +1,7 @@
 package org.example.cafe24_demo_v1.order.infrastructure.persistence;
 
 import org.example.cafe24_demo_v1.order.domain.model.OrderWebhookEvent;
+import org.example.cafe24_demo_v1.order.domain.model.OrderWebhookEventStatus;
 import org.springframework.stereotype.Component;
 
 /**
@@ -19,7 +20,9 @@ class OrderWebhookEventMapper {
                 entity.getWebhookId(),
                 entity.getPayload(),
                 entity.getReceivedAt(),
-                entity.isProcessed(),
+                OrderWebhookEventStatus.valueOf(entity.getStatus()),
+                entity.getRetryCount(),
+                entity.getNextRetryAt(),
                 entity.getProcessedAt(),
                 entity.getErrorMessage(),
                 entity.getCreatedAt()
@@ -36,7 +39,9 @@ class OrderWebhookEventMapper {
         entity.setWebhookId(domain.getWebhookId());
         entity.setPayload(domain.getPayload());
         entity.setReceivedAt(domain.getReceivedAt());
-        entity.setProcessed(domain.isProcessed());
+        entity.setStatus(domain.getStatus().name());
+        entity.setRetryCount(domain.getRetryCount());
+        entity.setNextRetryAt(domain.getNextRetryAt());
         entity.setProcessedAt(domain.getProcessedAt());
         entity.setErrorMessage(domain.getErrorMessage());
         entity.setCreatedAt(domain.getCreatedAt());

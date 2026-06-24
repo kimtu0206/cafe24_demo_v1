@@ -2,6 +2,7 @@ package org.example.cafe24_demo_v1.order.domain.repository;
 
 import org.example.cafe24_demo_v1.order.domain.model.OrderWebhookEvent;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -17,6 +18,9 @@ public interface OrderWebhookEventRepository {
 
     void save(OrderWebhookEvent event);
 
-    /** 미처리(processed=false) 이벤트를 오래된 순으로 최대 limit건 조회한다. */
-    List<OrderWebhookEvent> findUnprocessed(int limit);
+    /**
+     * 재시도 대상(RECEIVED 또는 FAILED 상태이면서 nextRetryAt이 now 이전이거나 없는) 이벤트를
+     * 오래된 순으로 최대 limit건 조회한다. DEAD/PROCESSED 상태는 대상에서 제외된다.
+     */
+    List<OrderWebhookEvent> findRetryableEvents(LocalDateTime now, int limit);
 }

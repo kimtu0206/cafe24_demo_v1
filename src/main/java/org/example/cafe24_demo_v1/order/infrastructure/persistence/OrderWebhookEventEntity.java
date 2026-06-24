@@ -44,8 +44,14 @@ class OrderWebhookEventEntity {
     @Column(name = "received_at", nullable = false)
     private LocalDateTime receivedAt;
 
-    @Column(name = "processed_yn", nullable = false)
-    private boolean processed;
+    @Column(name = "status", nullable = false)
+    private String status;    // OrderWebhookEventStatus.name() — RECEIVED/PROCESSED/FAILED/DEAD
+
+    @Column(name = "retry_count", nullable = false)
+    private int retryCount;
+
+    @Column(name = "next_retry_at")
+    private LocalDateTime nextRetryAt;
 
     @Column(name = "processed_at")
     private LocalDateTime processedAt;

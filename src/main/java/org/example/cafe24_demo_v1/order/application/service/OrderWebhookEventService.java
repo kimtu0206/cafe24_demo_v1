@@ -7,6 +7,7 @@ import org.example.cafe24_demo_v1.order.domain.repository.OrderWebhookEventRepos
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -41,16 +42,18 @@ public class OrderWebhookEventService {
     }
 
     /**
-     * 미처리 이벤트를 Cafe24에서 다시 조회해 order 테이블에 반영한다.
-     * OrderWebhookEventProcessor가 주기적으로 호출한다. 실패해도 processed가 false로 남아 다음 주기에 재시도된다.
+     * 재시도 대상 이벤트를 Cafe24에서 다시 조회해 order 테이블에 반영한다.
+     * OrderWebhookEventProcessor가 주기적으로 호출한다.
+     * 실패한 이벤트는 nextRetryAt만큼 미뤄지므로 같은 실행 안에서 바로 재조회되지 않는다.
      *
-     * 스케줄 주기가 하루 1회로 길어, 한 번 실행에 미처리 건이 배치 크기(PROCESS_BATCH_SIZE)를 넘게
+     * 스케줄 주기가 하루 1회로 길어, 한 번 실행에 재시도 대상이 배치 크기(PROCESS_BATCH_SIZE)를 넘게
      * 쌓여 있어도 모두 처리될 때까지 배치 단위로 반복 조회한다.
      */
     public void processUnprocessed() {
+        LocalDateTime now = LocalDateTime.now();
         List<OrderWebhookEvent> events;
         do {
-            events = repository.findUnprocessed(PROCESS_BATCH_SIZE);
+            events = repository.findRetryableEvents(now, PROCESS_BATCH_SIZE);
             events.forEach(this::process);
         } while (events.size() == PROCESS_BATCH_SIZE);
     }

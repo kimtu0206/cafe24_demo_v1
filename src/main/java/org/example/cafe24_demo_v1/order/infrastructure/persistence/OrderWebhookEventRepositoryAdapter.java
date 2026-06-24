@@ -6,6 +6,7 @@ import org.example.cafe24_demo_v1.order.domain.repository.OrderWebhookEventRepos
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -29,8 +30,8 @@ public class OrderWebhookEventRepositoryAdapter implements OrderWebhookEventRepo
     }
 
     @Override
-    public List<OrderWebhookEvent> findUnprocessed(int limit) {
-        return jpaRepository.findByProcessedFalseOrderByIdAsc(PageRequest.of(0, limit)).stream()
+    public List<OrderWebhookEvent> findRetryableEvents(LocalDateTime now, int limit) {
+        return jpaRepository.findRetryable(now, PageRequest.of(0, limit)).stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
     }

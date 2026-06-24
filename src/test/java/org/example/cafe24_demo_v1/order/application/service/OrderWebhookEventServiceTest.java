@@ -1,6 +1,7 @@
 package org.example.cafe24_demo_v1.order.application.service;
 
 import org.example.cafe24_demo_v1.order.domain.model.OrderWebhookEvent;
+import org.example.cafe24_demo_v1.order.domain.model.OrderWebhookEventStatus;
 import org.example.cafe24_demo_v1.order.domain.repository.OrderWebhookEventRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,9 +13,11 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -51,7 +54,7 @@ class OrderWebhookEventServiceTest {
     @Test
     void processUnprocessed은_성공하면_처리완료로_표시한다() {
         OrderWebhookEvent event = OrderWebhookEvent.receive("mymall", 90023, "ORDER_CREATED", "1", null, "{}");
-        given(repository.findUnprocessed(50)).willReturn(List.of(event));
+        given(repository.findRetryableEvents(any(), eq(50))).willReturn(List.of(event));
 
         service.processUnprocessed();
 
@@ -61,15 +64,32 @@ class OrderWebhookEventServiceTest {
     }
 
     @Test
-    void processUnprocessed은_실패하면_에러메시지를_남기고_미처리로_둔다() {
+    void processUnprocessed은_실패하면_에러메시지를_남기고_재시도상태로_둔다() {
         OrderWebhookEvent event = OrderWebhookEvent.receive("mymall", 90023, "ORDER_CREATED", "1", null, "{}");
-        given(repository.findUnprocessed(50)).willReturn(List.of(event));
+        given(repository.findRetryableEvents(any(), eq(50))).willReturn(List.of(event));
         willThrow(new IllegalStateException("주문을 찾을 수 없음")).given(orderService).upsertFromWebhook("mymall", "1");
 
         service.processUnprocessed();
 
         assertThat(event.isProcessed()).isFalse();
+        assertThat(event.getStatus()).isEqualTo(OrderWebhookEventStatus.FAILED);
         assertThat(event.getErrorMessage()).isEqualTo("주문을 찾을 수 없음");
         verify(repository).save(event);
+    }
+
+    @Test
+    void processUnprocessed은_같은_실행안에서_실패건을_무한정_재조회하지_않는다() {
+        List<OrderWebhookEvent> fullBatch = java.util.stream.IntStream.range(0, 50)
+                .mapToObj(i -> OrderWebhookEvent.receive("mymall", 90023 + i, "ORDER_CREATED", String.valueOf(i), null, "{}"))
+                .toList();
+        willThrow(new IllegalStateException("Cafe24 호출 실패")).given(orderService).upsertFromWebhook(any(), any());
+        given(repository.findRetryableEvents(any(), eq(50)))
+                .willReturn(fullBatch)
+                .willReturn(List.of());
+
+        service.processUnprocessed();
+
+        verify(repository, times(2)).findRetryableEvents(any(), eq(50));
+        fullBatch.forEach(event -> assertThat(event.getStatus()).isEqualTo(OrderWebhookEventStatus.FAILED));
     }
 }
