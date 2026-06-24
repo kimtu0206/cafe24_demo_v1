@@ -2,7 +2,8 @@ package org.example.cafe24_demo_v1.webhook.presentation;
 
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.webhook.infrastructure.Cafe24WebhookVerifier;
-import org.springframework.dao.DuplicateKeyException;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -42,13 +43,23 @@ abstract class AbstractCafe24WebhookController {
 
     /**
      * 거의 동시에 들어온 중복 Webhook이 이벤트 이력 테이블의 unique 제약 위반으로 충돌하면 발생한다.
+     * Hibernate가 Spring Data JPA를 통해 unique 제약 위반을 던지면 DataIntegrityViolationException으로
+     * 변환되어 올라온다(JdbcTemplate 전용인 DuplicateKeyException은 이 경로로 던져지지 않는다).
      * 이미 다른 요청이 같은 이벤트를 처리(또는 처리 중)라는 뜻이므로, Cafe24가 재전송하지 않도록 200을 반환한다.
      * unique 제약이 아닌 다른 무결성 위반(NOT NULL 등)은 실제 데이터 오류이므로 여기서 삼키지 않고
      * 그대로 전파시켜 Cafe24가 재전송하도록 한다.
      */
-    @ExceptionHandler(DuplicateKeyException.class)
-    public ResponseEntity<Void> handleDuplicateWebhook(DuplicateKeyException e) {
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Void> handleDuplicateWebhook(DataIntegrityViolationException e) {
+        if (!isUniqueConstraintViolation(e)) {
+            throw e;
+        }
         log.info("Duplicate webhook ignored (concurrent race): {}", e.getMessage());
         return ResponseEntity.ok().build();
+    }
+
+    private boolean isUniqueConstraintViolation(DataIntegrityViolationException e) {
+        return e.getCause() instanceof ConstraintViolationException cve
+                && cve.getKind() == ConstraintViolationException.ConstraintKind.UNIQUE;
     }
 }
