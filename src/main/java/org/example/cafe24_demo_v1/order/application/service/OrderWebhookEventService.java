@@ -43,11 +43,11 @@ public class OrderWebhookEventService {
 
     /**
      * 재시도 대상 이벤트를 Cafe24에서 다시 조회해 order 테이블에 반영한다.
-     * OrderWebhookEventProcessor가 주기적으로 호출한다.
+     * OrderWebhookEventProcessor가 짧은 주기로 반복 호출한다.
      * 실패한 이벤트는 nextRetryAt만큼 미뤄지므로 같은 실행 안에서 바로 재조회되지 않는다.
      *
-     * 스케줄 주기가 하루 1회로 길어, 한 번 실행에 재시도 대상이 배치 크기(PROCESS_BATCH_SIZE)를 넘게
-     * 쌓여 있어도 모두 처리될 때까지 배치 단위로 반복 조회한다.
+     * 한 번 실행에 재시도 대상이 배치 크기(PROCESS_BATCH_SIZE)를 넘게 쌓여 있어도
+     * 모두 처리될 때까지 배치 단위로 반복 조회한다.
      */
     public void processUnprocessed() {
         LocalDateTime now = LocalDateTime.now();
