@@ -23,6 +23,16 @@ class OrderWebhookEventTest {
     }
 
     @Test
+    void markProcessing으로_처리중_상태가_되고_시도_시각이_기록된다() {
+        OrderWebhookEvent event = OrderWebhookEvent.receive("mymall", 90023, "ORDER_CREATED", "1", null, "{}");
+
+        event.markProcessing();
+
+        assertThat(event.getStatus()).isEqualTo(OrderWebhookEventStatus.PROCESSING);
+        assertThat(event.getLastTriedAt()).isNotNull();
+    }
+
+    @Test
     void markProcessed으로_처리완료_상태가_되고_재시도_예약이_해제된다() {
         OrderWebhookEvent event = OrderWebhookEvent.receive("mymall", 90023, "ORDER_CREATED", "1", null, "{}");
         event.markFailed("일시 실패");

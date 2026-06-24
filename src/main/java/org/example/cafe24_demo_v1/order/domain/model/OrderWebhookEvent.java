@@ -18,6 +18,12 @@ public class OrderWebhookEvent {
     private static final int MAX_RETRY_COUNT = 5;
     /** 실패한 이벤트를 같은 배치 조회에서 바로 다시 집지 않도록 두는 재시도 간격. */
     private static final Duration RETRY_BACKOFF = Duration.ofHours(1);
+    /**
+     * PROCESSING 상태로 머문 시간이 이 값을 넘으면 크래시로 보고 재시도 대상에 다시 포함시킨다.
+     * Cafe24OrderClient의 connect/read timeout(3s+5s) 합보다 충분히 길게 잡아, 정상 진행 중인
+     * 호출을 재수집하지 않으면서도 앱이 죽어 영구히 PROCESSING으로 남는 것은 방지한다.
+     */
+    public static final Duration PROCESSING_STALE_TIMEOUT = Duration.ofMinutes(5);
 
     private Long id;
     private String mallId;
@@ -30,6 +36,7 @@ public class OrderWebhookEvent {
     private OrderWebhookEventStatus status;
     private int retryCount;
     private LocalDateTime nextRetryAt;
+    private LocalDateTime lastTriedAt;
     private LocalDateTime processedAt;
     private String errorMessage;
     private LocalDateTime createdAt;
@@ -58,7 +65,8 @@ public class OrderWebhookEvent {
     public static OrderWebhookEvent reconstitute(
             Long id, String mallId, Integer eventNo, String eventType, String resourceId, String webhookId,
             String payload, LocalDateTime receivedAt, OrderWebhookEventStatus status, int retryCount,
-            LocalDateTime nextRetryAt, LocalDateTime processedAt, String errorMessage, LocalDateTime createdAt
+            LocalDateTime nextRetryAt, LocalDateTime lastTriedAt, LocalDateTime processedAt, String errorMessage,
+            LocalDateTime createdAt
     ) {
         OrderWebhookEvent event = new OrderWebhookEvent();
         event.id = id;
@@ -72,10 +80,17 @@ public class OrderWebhookEvent {
         event.status = status;
         event.retryCount = retryCount;
         event.nextRetryAt = nextRetryAt;
+        event.lastTriedAt = lastTriedAt;
         event.processedAt = processedAt;
         event.errorMessage = errorMessage;
         event.createdAt = createdAt;
         return event;
+    }
+
+    /** Cafe24 재조회를 시도하기 직전에 호출한다. 시도 시각을 기록해 크래시 시 복구 기준으로 쓴다. */
+    public void markProcessing() {
+        this.status = OrderWebhookEventStatus.PROCESSING;
+        this.lastTriedAt = LocalDateTime.now();
     }
 
     /** 주문 테이블 반영에 성공했을 때 호출한다. */

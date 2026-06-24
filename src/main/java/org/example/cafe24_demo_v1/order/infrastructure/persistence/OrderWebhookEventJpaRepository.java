@@ -14,9 +14,13 @@ interface OrderWebhookEventJpaRepository extends JpaRepository<OrderWebhookEvent
 
     @Query("""
             SELECT e FROM OrderWebhookEventEntity e
-            WHERE e.status IN ('RECEIVED', 'FAILED')
-            AND (e.nextRetryAt IS NULL OR e.nextRetryAt <= :now)
+            WHERE (e.status IN ('RECEIVED', 'FAILED') AND (e.nextRetryAt IS NULL OR e.nextRetryAt <= :now))
+            OR (e.status = 'PROCESSING' AND e.lastTriedAt <= :processingStaleBefore)
             ORDER BY e.id ASC
             """)
-    List<OrderWebhookEventEntity> findRetryable(@Param("now") LocalDateTime now, Pageable pageable);
+    List<OrderWebhookEventEntity> findRetryable(
+            @Param("now") LocalDateTime now,
+            @Param("processingStaleBefore") LocalDateTime processingStaleBefore,
+            Pageable pageable
+    );
 }

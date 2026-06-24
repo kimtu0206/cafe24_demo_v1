@@ -30,8 +30,8 @@ public class OrderWebhookEventRepositoryAdapter implements OrderWebhookEventRepo
     }
 
     @Override
-    public List<OrderWebhookEvent> findRetryableEvents(LocalDateTime now, int limit) {
-        return jpaRepository.findRetryable(now, PageRequest.of(0, limit)).stream()
+    public List<OrderWebhookEvent> findRetryableEvents(LocalDateTime now, LocalDateTime processingStaleBefore, int limit) {
+        return jpaRepository.findRetryable(now, processingStaleBefore, PageRequest.of(0, limit)).stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
     }

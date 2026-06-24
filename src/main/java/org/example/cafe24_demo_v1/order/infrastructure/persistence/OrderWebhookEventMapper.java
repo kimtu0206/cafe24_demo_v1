@@ -23,6 +23,7 @@ class OrderWebhookEventMapper {
                 OrderWebhookEventStatus.valueOf(entity.getStatus()),
                 entity.getRetryCount(),
                 entity.getNextRetryAt(),
+                entity.getLastTriedAt(),
                 entity.getProcessedAt(),
                 entity.getErrorMessage(),
                 entity.getCreatedAt()
@@ -42,6 +43,7 @@ class OrderWebhookEventMapper {
         entity.setStatus(domain.getStatus().name());
         entity.setRetryCount(domain.getRetryCount());
         entity.setNextRetryAt(domain.getNextRetryAt());
+        entity.setLastTriedAt(domain.getLastTriedAt());
         entity.setProcessedAt(domain.getProcessedAt());
         entity.setErrorMessage(domain.getErrorMessage());
         entity.setCreatedAt(domain.getCreatedAt());

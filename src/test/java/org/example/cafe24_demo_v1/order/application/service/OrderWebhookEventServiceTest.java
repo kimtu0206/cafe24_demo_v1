@@ -54,19 +54,29 @@ class OrderWebhookEventServiceTest {
     @Test
     void processUnprocessed은_성공하면_처리완료로_표시한다() {
         OrderWebhookEvent event = OrderWebhookEvent.receive("mymall", 90023, "ORDER_CREATED", "1", null, "{}");
-        given(repository.findRetryableEvents(any(), eq(50))).willReturn(List.of(event));
+        given(repository.findRetryableEvents(any(), any(), eq(50))).willReturn(List.of(event));
 
         service.processUnprocessed();
 
         verify(orderService).upsertFromWebhook("mymall", "1");
         assertThat(event.isProcessed()).isTrue();
-        verify(repository).save(event);
+        verify(repository, times(2)).save(event);
+    }
+
+    @Test
+    void processUnprocessed은_시도_직전에_PROCESSING으로_먼저_저장한다() {
+        OrderWebhookEvent event = OrderWebhookEvent.receive("mymall", 90023, "ORDER_CREATED", "1", null, "{}");
+        given(repository.findRetryableEvents(any(), any(), eq(50))).willReturn(List.of(event));
+
+        service.processUnprocessed();
+
+        assertThat(event.getLastTriedAt()).isNotNull();
     }
 
     @Test
     void processUnprocessed은_실패하면_에러메시지를_남기고_재시도상태로_둔다() {
         OrderWebhookEvent event = OrderWebhookEvent.receive("mymall", 90023, "ORDER_CREATED", "1", null, "{}");
-        given(repository.findRetryableEvents(any(), eq(50))).willReturn(List.of(event));
+        given(repository.findRetryableEvents(any(), any(), eq(50))).willReturn(List.of(event));
         willThrow(new IllegalStateException("주문을 찾을 수 없음")).given(orderService).upsertFromWebhook("mymall", "1");
 
         service.processUnprocessed();
@@ -74,7 +84,7 @@ class OrderWebhookEventServiceTest {
         assertThat(event.isProcessed()).isFalse();
         assertThat(event.getStatus()).isEqualTo(OrderWebhookEventStatus.FAILED);
         assertThat(event.getErrorMessage()).isEqualTo("주문을 찾을 수 없음");
-        verify(repository).save(event);
+        verify(repository, times(2)).save(event);
     }
 
     @Test
@@ -83,13 +93,13 @@ class OrderWebhookEventServiceTest {
                 .mapToObj(i -> OrderWebhookEvent.receive("mymall", 90023 + i, "ORDER_CREATED", String.valueOf(i), null, "{}"))
                 .toList();
         willThrow(new IllegalStateException("Cafe24 호출 실패")).given(orderService).upsertFromWebhook(any(), any());
-        given(repository.findRetryableEvents(any(), eq(50)))
+        given(repository.findRetryableEvents(any(), any(), eq(50)))
                 .willReturn(fullBatch)
                 .willReturn(List.of());
 
         service.processUnprocessed();
 
-        verify(repository, times(2)).findRetryableEvents(any(), eq(50));
+        verify(repository, times(2)).findRetryableEvents(any(), any(), eq(50));
         fullBatch.forEach(event -> assertThat(event.getStatus()).isEqualTo(OrderWebhookEventStatus.FAILED));
     }
 }

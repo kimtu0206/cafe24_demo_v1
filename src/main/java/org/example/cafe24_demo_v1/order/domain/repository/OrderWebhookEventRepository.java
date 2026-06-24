@@ -19,8 +19,10 @@ public interface OrderWebhookEventRepository {
     void save(OrderWebhookEvent event);
 
     /**
-     * 재시도 대상(RECEIVED 또는 FAILED 상태이면서 nextRetryAt이 now 이전이거나 없는) 이벤트를
-     * 오래된 순으로 최대 limit건 조회한다. DEAD/PROCESSED 상태는 대상에서 제외된다.
+     * 재시도 대상 이벤트를 오래된 순으로 최대 limit건 조회한다. 다음 중 하나에 해당하면 대상이다:
+     * (1) RECEIVED 또는 FAILED 상태이면서 nextRetryAt이 now 이전이거나 없음
+     * (2) PROCESSING 상태인데 lastTriedAt이 processingStaleBefore 이전(앱 크래시로 추정)
+     * DEAD/PROCESSED 상태는 대상에서 제외된다.
      */
-    List<OrderWebhookEvent> findRetryableEvents(LocalDateTime now, int limit);
+    List<OrderWebhookEvent> findRetryableEvents(LocalDateTime now, LocalDateTime processingStaleBefore, int limit);
 }

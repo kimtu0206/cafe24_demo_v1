@@ -51,14 +51,21 @@ public class OrderWebhookEventService {
      */
     public void processUnprocessed() {
         LocalDateTime now = LocalDateTime.now();
+        LocalDateTime processingStaleBefore = now.minus(OrderWebhookEvent.PROCESSING_STALE_TIMEOUT);
         List<OrderWebhookEvent> events;
         do {
-            events = repository.findRetryableEvents(now, PROCESS_BATCH_SIZE);
+            events = repository.findRetryableEvents(now, processingStaleBefore, PROCESS_BATCH_SIZE);
             events.forEach(this::process);
         } while (events.size() == PROCESS_BATCH_SIZE);
     }
 
+    /**
+     * Cafe24 호출 직전에 PROCESSING으로 한 번 저장해 시도 시작을 기록한 뒤(크래시 시 복구 기준),
+     * 호출 결과에 따라 최종 상태로 다시 저장한다.
+     */
     private void process(OrderWebhookEvent event) {
+        event.markProcessing();
+        repository.save(event);
         try {
             orderService.upsertFromWebhook(event.getMallId(), event.getResourceId());
             event.markProcessed();
