@@ -18,11 +18,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class OrderWebhookEventProcessor {
 
-    private static final long PROCESS_DELAY_MS = 60 * 1000L;
-
     private final OrderWebhookEventService orderWebhookEventService;
 
-    @Scheduled(fixedDelay = PROCESS_DELAY_MS)
+    @Scheduled(fixedDelayString = "${worker.order-webhook.fixed-delay-ms}")
     public void process() {
         orderWebhookEventService.processUnprocessed();
     }

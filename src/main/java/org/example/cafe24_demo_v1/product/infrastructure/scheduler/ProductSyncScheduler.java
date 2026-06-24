@@ -8,7 +8,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 매일 23시, Cafe24 상품 전체를 Local DB와 동기화하는 스케줄러.
+ * sync.product.cron 주기로 Cafe24 상품 전체를 Local DB와 동기화하는 스케줄러.
  */
 @Slf4j
 @Component
@@ -18,7 +18,7 @@ public class ProductSyncScheduler {
     private final ProductService productService;
     private final Cafe24Properties cafe24Properties;
 
-    @Scheduled(cron = "0 0 10 * * *")
+    @Scheduled(cron = "${sync.product.cron}")
     public void syncProducts() {
         String mallId = cafe24Properties.getMallId();
         log.info("Product sync scheduler triggered: mallId={}", mallId);

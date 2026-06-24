@@ -15,8 +15,6 @@ import java.util.List;
 @Getter
 public class OrderWebhookEvent {
 
-    /** 실패가 이 횟수를 넘으면 더 이상 재시도하지 않고 DEAD로 전환한다. */
-    private static final int MAX_RETRY_COUNT = 5;
     /**
      * 일시 오류로 실패했을 때 다음 재시도까지 기다리는 간격. 재시도 횟수가 늘어날수록
      * 점진적으로 늘어나며(1분→5분→15분→1시간), 마지막 단계 이후로는 1시간을 유지한다.
@@ -111,11 +109,12 @@ public class OrderWebhookEvent {
      * 일시 오류(토큰 만료, 5xx, timeout 등)로 주문 테이블 반영에 실패했을 때 호출한다.
      * retryCount를 늘리고 nextRetryAt을 재시도 횟수에 따라 점진적으로 미래로 미뤄,
      * 같은 배치 조회에서 바로 다시 집히지 않게 한다.
-     * MAX_RETRY_COUNT를 넘으면 더 이상 재시도하지 않는 DEAD로 전환한다.
+     * retryCount가 maxRetryCount를 넘으면 더 이상 재시도하지 않는 DEAD로 전환한다.
+     * maxRetryCount는 운영 설정값이라 domain이 직접 알지 않고 호출자(application)가 전달한다.
      */
-    public void markFailed(String errorMessage) {
+    public void markFailed(String errorMessage, int maxRetryCount) {
         this.retryCount++;
-        this.status = this.retryCount >= MAX_RETRY_COUNT
+        this.status = this.retryCount >= maxRetryCount
                 ? OrderWebhookEventStatus.DEAD
                 : OrderWebhookEventStatus.FAILED;
         this.nextRetryAt = LocalDateTime.now().plus(retryBackoff());

@@ -10,6 +10,21 @@ cafe24:
   webhook:
     api-key: ${CAFE24_WEBHOOK_API_KEY:}
 
+worker:
+  order-webhook:
+    fixed-delay-ms: 60000
+    batch-size: 50
+    max-retry-count: 5
+
+sync:
+  order:
+    fixed-rate-ms: 86400000
+    lookback-hours: 48
+  product:
+    cron: "0 0 10 * * *"
+  carrier:
+    cron: "0 30 16 * * *"
+
 spring:
   profiles:
     default: local

@@ -8,7 +8,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 매일 10시, Cafe24 배송사 전체를 Local DB와 동기화하는 스케줄러.
+ * sync.carrier.cron 주기로 Cafe24 배송사 전체를 Local DB와 동기화하는 스케줄러.
  */
 @Slf4j
 @Component
@@ -18,7 +18,7 @@ public class CarrierSyncScheduler {
     private final CarrierService carrierService;
     private final Cafe24Properties cafe24Properties;
 
-    @Scheduled(cron = "0 30 16 * * *")
+    @Scheduled(cron = "${sync.carrier.cron}")
     public void syncCarriers() {
         String mallId = cafe24Properties.getMallId();
         log.info("Carrier sync scheduler triggered: mallId={}", mallId);

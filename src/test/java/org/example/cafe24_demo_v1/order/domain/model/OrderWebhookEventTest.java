@@ -39,7 +39,7 @@ class OrderWebhookEventTest {
     @Test
     void markProcessed으로_처리완료_상태가_되고_재시도_예약이_해제된다() {
         OrderWebhookEvent event = OrderWebhookEvent.receive("mymall", 90023, "ORDER_CREATED", "1", null, "{}");
-        event.markFailed("일시 실패");
+        event.markFailed("일시 실패", 5);
 
         event.markProcessed();
 
@@ -54,7 +54,7 @@ class OrderWebhookEventTest {
     void markFailed으로_실패_사유가_기록되고_재시도_시각이_미래로_설정된다() {
         OrderWebhookEvent event = OrderWebhookEvent.receive("mymall", 90023, "ORDER_CREATED", "1", null, "{}");
 
-        event.markFailed("Cafe24 API 호출 실패");
+        event.markFailed("Cafe24 API 호출 실패", 5);
 
         assertThat(event.getStatus()).isEqualTo(OrderWebhookEventStatus.FAILED);
         assertThat(event.isProcessed()).isFalse();
@@ -72,7 +72,7 @@ class OrderWebhookEventTest {
 
         for (Duration backoff : expected) {
             LocalDateTime before = LocalDateTime.now();
-            event.markFailed("실패");
+            event.markFailed("실패", 5);
             assertThat(event.getNextRetryAt()).isCloseTo(before.plus(backoff), within(2, java.time.temporal.ChronoUnit.SECONDS));
         }
     }
@@ -82,10 +82,10 @@ class OrderWebhookEventTest {
         OrderWebhookEvent event = OrderWebhookEvent.receive("mymall", 90023, "ORDER_CREATED", "1", null, "{}");
 
         for (int i = 0; i < 4; i++) {
-            event.markFailed("실패 " + i);
+            event.markFailed("실패 " + i, 5);
             assertThat(event.getStatus()).isEqualTo(OrderWebhookEventStatus.FAILED);
         }
-        event.markFailed("5번째 실패");
+        event.markFailed("5번째 실패", 5);
 
         assertThat(event.getRetryCount()).isEqualTo(5);
         assertThat(event.getStatus()).isEqualTo(OrderWebhookEventStatus.DEAD);

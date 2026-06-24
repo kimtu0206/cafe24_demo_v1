@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.order.domain.model.OrderWebhookEvent;
 import org.example.cafe24_demo_v1.order.domain.repository.OrderWebhookEventRepository;
+import org.example.cafe24_demo_v1.shared.config.WorkerProperties;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,11 +24,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OrderWebhookEventService {
 
-    private static final int PROCESS_BATCH_SIZE = 50;
     private static final String ORDER_CREATED_EVENT_TYPE = "ORDER_CREATED";
 
     private final OrderWebhookEventRepository repository;
     private final OrderService orderService;
+    private final WorkerProperties workerProperties;
 
     /**
      * Webhook 원본 payload를 저장한다. (eventNo, mallId, orderId) 조합으로 중복 수신을 확인해
@@ -47,17 +48,18 @@ public class OrderWebhookEventService {
      * OrderWebhookEventProcessor가 짧은 주기로 반복 호출한다.
      * 실패한 이벤트는 nextRetryAt만큼 미뤄지므로 같은 실행 안에서 바로 재조회되지 않는다.
      *
-     * 한 번 실행에 재시도 대상이 배치 크기(PROCESS_BATCH_SIZE)를 넘게 쌓여 있어도
+     * 한 번 실행에 재시도 대상이 배치 크기(worker.order-webhook.batch-size)를 넘게 쌓여 있어도
      * 모두 처리될 때까지 배치 단위로 반복 조회한다.
      */
     public void processUnprocessed() {
+        int batchSize = workerProperties.getOrderWebhook().getBatchSize();
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime processingStaleBefore = now.minus(OrderWebhookEvent.PROCESSING_STALE_TIMEOUT);
         List<OrderWebhookEvent> events;
         do {
-            events = repository.findRetryableEvents(now, processingStaleBefore, PROCESS_BATCH_SIZE);
+            events = repository.findRetryableEvents(now, processingStaleBefore, batchSize);
             events.forEach(this::process);
-        } while (events.size() == PROCESS_BATCH_SIZE);
+        } while (events.size() == batchSize);
     }
 
     /**
@@ -80,7 +82,7 @@ public class OrderWebhookEventService {
             if (isPermanentError(e)) {
                 event.markDead(e.getMessage());
             } else {
-                event.markFailed(e.getMessage());
+                event.markFailed(e.getMessage(), workerProperties.getOrderWebhook().getMaxRetryCount());
             }
         }
         repository.save(event);

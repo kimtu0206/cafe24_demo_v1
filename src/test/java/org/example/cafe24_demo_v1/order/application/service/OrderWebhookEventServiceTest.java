@@ -3,6 +3,7 @@ package org.example.cafe24_demo_v1.order.application.service;
 import org.example.cafe24_demo_v1.order.domain.model.OrderWebhookEvent;
 import org.example.cafe24_demo_v1.order.domain.model.OrderWebhookEventStatus;
 import org.example.cafe24_demo_v1.order.domain.repository.OrderWebhookEventRepository;
+import org.example.cafe24_demo_v1.shared.config.WorkerProperties;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,7 +33,10 @@ class OrderWebhookEventServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new OrderWebhookEventService(repository, orderService);
+        WorkerProperties workerProperties = new WorkerProperties();
+        workerProperties.getOrderWebhook().setBatchSize(50);
+        workerProperties.getOrderWebhook().setMaxRetryCount(5);
+        service = new OrderWebhookEventService(repository, orderService, workerProperties);
     }
 
     @Test
