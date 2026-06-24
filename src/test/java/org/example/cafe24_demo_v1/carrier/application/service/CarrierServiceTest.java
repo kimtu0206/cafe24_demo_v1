@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -83,6 +84,30 @@ class CarrierServiceTest {
         carrierService.syncFromCafe24("mymall");
 
         verify(repository).save(succeeding);
+    }
+
+    @Test
+    void syncFromCafe24는_동시_삽입_경쟁으로_충돌하면_재조회후_갱신으로_폴백한다() {
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+
+        Carrier snapshot = Carrier.register(
+                "mymall", null, "0022", "변경된 배송사명", null, null, null, null, null, null,
+                ShippingType.DOMESTIC, false, false
+        );
+        given(cafe24CarrierPort.getCarriers("mymall", 0, 100, credential)).willReturn(List.of(snapshot));
+
+        Carrier concurrentlyInserted = Carrier.register(
+                "mymall", 1L, "0022", "기존 배송사명", null, null, null, null, null, null,
+                ShippingType.DOMESTIC, false, false
+        );
+        given(repository.findByMallIdAndShippingCarrierCode("mymall", "0022"))
+                .willReturn(Optional.empty(), Optional.of(concurrentlyInserted));
+        willThrow(new DataIntegrityViolationException("duplicate entry")).given(repository).save(snapshot);
+
+        carrierService.syncFromCafe24("mymall");
+
+        assertThat(concurrentlyInserted.getShippingCarrierName()).isEqualTo("변경된 배송사명");
+        verify(repository).save(concurrentlyInserted);
     }
 
     @Test

@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -193,6 +194,25 @@ class ProductServiceTest {
         productService.syncFromCafe24("mymall");
 
         verify(repository).save(succeeding);
+    }
+
+    @Test
+    void syncFromCafe24는_동시_삽입_경쟁으로_충돌하면_재조회후_갱신으로_폴백한다() {
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+
+        Product snapshot = product("mymall", 1L, "변경된 이름", "2000", "900", ProductStatus.SUSPENDED);
+        given(cafe24ProductPort.getProducts("mymall", 0, 100, credential)).willReturn(List.of(snapshot));
+
+        Product concurrentlyInserted = existingProduct(10L, 1L, "mymall", "기존 이름", "1000", "500", ProductStatus.ON_SALE);
+        given(repository.findByMallIdAndProductNo("mymall", 1L))
+                .willReturn(Optional.empty(), Optional.of(concurrentlyInserted));
+        willThrow(new DataIntegrityViolationException("duplicate entry")).given(repository).save(snapshot);
+
+        productService.syncFromCafe24("mymall");
+
+        assertThat(concurrentlyInserted.getProductName()).isEqualTo("변경된 이름");
+        assertThat(concurrentlyInserted.getStatus()).isEqualTo(ProductStatus.SUSPENDED);
+        verify(repository).save(concurrentlyInserted);
     }
 
     private List<Product> fixedSizeProducts(int size, long startProductNo) {

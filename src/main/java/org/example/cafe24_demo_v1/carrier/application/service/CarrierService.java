@@ -8,6 +8,7 @@ import org.example.cafe24_demo_v1.carrier.application.command.RegisterCarrierCom
 import org.example.cafe24_demo_v1.carrier.domain.model.Carrier;
 import org.example.cafe24_demo_v1.carrier.domain.repository.CarrierRepository;
 import org.example.cafe24_demo_v1.carrier.domain.service.Cafe24CarrierPort;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -90,20 +91,41 @@ public class CarrierService {
         return created;
     }
 
-    /** Cafe24 스냅샷을 로컬 DB에 반영한다. 이미 있으면 갱신, 없으면 신규 저장(Upsert). */
+    /**
+     * Cafe24 스냅샷을 로컬 DB에 반영한다. 이미 있으면 갱신, 없으면 신규 저장(Upsert).
+     *
+     * (mall_id, shipping_carrier_code) unique 제약 때문에, 같은 배송사를 동시에 반영하는 다른
+     * 경로와 경쟁하면 INSERT가 DataIntegrityViolationException으로 실패할 수 있다. 이 경우 다른
+     * 트랜잭션이 먼저 넣은 행을 재조회해 갱신으로 폴백한다(Order.upsert와 동일한 패턴). 이 메서드의
+     * 유일한 호출부인 syncFromCafe24는 @Transactional이 없어 save() 호출마다 독립된 트랜잭션으로
+     * 즉시 flush되므로 이 폴백이 안전하게 동작한다.
+     */
     private void upsert(Carrier snapshot) {
+        try {
+            findAndApply(snapshot);
+        } catch (DataIntegrityViolationException e) {
+            log.info("Carrier sync 중 동시 삽입 경쟁으로 충돌, 재조회 후 갱신으로 폴백: mallId={}, shippingCarrierCode={}",
+                    snapshot.getMallId(), snapshot.getShippingCarrierCode());
+            repository.findByMallIdAndShippingCarrierCode(snapshot.getMallId(), snapshot.getShippingCarrierCode())
+                    .ifPresent(existing -> applySnapshotAndSave(existing, snapshot));
+        }
+    }
+
+    private void findAndApply(Carrier snapshot) {
         repository.findByMallIdAndShippingCarrierCode(snapshot.getMallId(), snapshot.getShippingCarrierCode())
                 .ifPresentOrElse(
-                        existing -> {
-                            existing.applySnapshot(
-                                    snapshot.getShippingCarrierName(), snapshot.getContact(), snapshot.getSecondaryContact(),
-                                    snapshot.getEmail(), snapshot.getTrackShipmentUrl(), snapshot.getDefaultShippingFee(),
-                                    snapshot.getHomepageUrl(), snapshot.getShippingType(), snapshot.isDefaultCarrier(),
-                                    snapshot.isShippingFeeSetting()
-                            );
-                            repository.save(existing);
-                        },
+                        existing -> applySnapshotAndSave(existing, snapshot),
                         () -> repository.save(snapshot)
                 );
+    }
+
+    private void applySnapshotAndSave(Carrier existing, Carrier snapshot) {
+        existing.applySnapshot(
+                snapshot.getShippingCarrierName(), snapshot.getContact(), snapshot.getSecondaryContact(),
+                snapshot.getEmail(), snapshot.getTrackShipmentUrl(), snapshot.getDefaultShippingFee(),
+                snapshot.getHomepageUrl(), snapshot.getShippingType(), snapshot.isDefaultCarrier(),
+                snapshot.isShippingFeeSetting()
+        );
+        repository.save(existing);
     }
 }

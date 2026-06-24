@@ -12,6 +12,7 @@ import org.example.cafe24_demo_v1.product.domain.model.ProductPage;
 import org.example.cafe24_demo_v1.product.domain.model.ProductRegistration;
 import org.example.cafe24_demo_v1.product.domain.repository.ProductRepository;
 import org.example.cafe24_demo_v1.product.domain.service.Cafe24ProductPort;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -122,7 +123,7 @@ public class ProductService {
             page = cafe24ProductPort.getProducts(mallId, offset, SYNC_PAGE_SIZE, credential);
             for (Product snapshot : page) {
                 try {
-                    upsert(snapshot);
+                    upsertWithConflictFallback(snapshot);
                     syncedCount++;
                 } catch (Exception e) {
                     log.error("Product sync 중 1건 실패, 다음 건 계속 진행: mallId={}, productNo={}",
@@ -137,17 +138,43 @@ public class ProductService {
 
     /** Cafe24 스냅샷을 로컬 DB에 반영한다. 이미 있으면 갱신, 없으면 신규 저장(Upsert). */
     private void upsert(Product snapshot) {
+        findAndApply(snapshot);
+    }
+
+    /**
+     * syncFromCafe24 전용 upsert. (mall_id, product_no) unique 제약 때문에, 같은 상품을 동시에
+     * 반영하는 다른 경로(Webhook 등)와 경쟁하면 INSERT가 DataIntegrityViolationException으로 실패할
+     * 수 있다. 이 경우 다른 트랜잭션이 먼저 넣은 행을 재조회해 갱신으로 폴백한다(Order.upsert와 동일한
+     * 패턴). syncFromCafe24는 @Transactional이 없어 save() 호출마다 독립된 트랜잭션으로 즉시
+     * flush되므로 이 폴백이 안전하게 동작한다. update()/upsertFromWebhook()은 @Transactional로
+     * 감싸여 있어 같은 폴백을 적용하면 트랜잭션이 rollback-only로 마킹돼 폴백 자체가 무효화될 수
+     * 있으므로 적용하지 않는다.
+     */
+    private void upsertWithConflictFallback(Product snapshot) {
+        try {
+            findAndApply(snapshot);
+        } catch (DataIntegrityViolationException e) {
+            log.info("Product sync 중 동시 삽입 경쟁으로 충돌, 재조회 후 갱신으로 폴백: mallId={}, productNo={}",
+                    snapshot.getMallId(), snapshot.getProductNo());
+            repository.findByMallIdAndProductNo(snapshot.getMallId(), snapshot.getProductNo())
+                    .ifPresent(existing -> applySnapshotAndSave(existing, snapshot));
+        }
+    }
+
+    private void findAndApply(Product snapshot) {
         repository.findByMallIdAndProductNo(snapshot.getMallId(), snapshot.getProductNo())
                 .ifPresentOrElse(
-                        existing -> {
-                            existing.applySnapshot(
-                                    snapshot.getProductName(), snapshot.getPrice(), snapshot.getSupplyPrice(), snapshot.getStatus(),
-                                    snapshot.getDescription(), snapshot.getPaymentInfo(), snapshot.getShippingInfo(), snapshot.getExchangeInfo(),
-                                    snapshot.getPriceExcludingTax(), snapshot.getDetailImage(), snapshot.getImageUploadType()
-                            );
-                            repository.save(existing);
-                        },
+                        existing -> applySnapshotAndSave(existing, snapshot),
                         () -> repository.save(snapshot)
                 );
+    }
+
+    private void applySnapshotAndSave(Product existing, Product snapshot) {
+        existing.applySnapshot(
+                snapshot.getProductName(), snapshot.getPrice(), snapshot.getSupplyPrice(), snapshot.getStatus(),
+                snapshot.getDescription(), snapshot.getPaymentInfo(), snapshot.getShippingInfo(), snapshot.getExchangeInfo(),
+                snapshot.getPriceExcludingTax(), snapshot.getDetailImage(), snapshot.getImageUploadType()
+        );
+        repository.save(existing);
     }
 }
