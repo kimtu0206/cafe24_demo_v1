@@ -9,7 +9,6 @@ import org.example.cafe24_demo_v1.carrier.domain.model.Carrier;
 import org.example.cafe24_demo_v1.carrier.domain.repository.CarrierRepository;
 import org.example.cafe24_demo_v1.carrier.domain.service.Cafe24CarrierPort;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -34,8 +33,11 @@ public class CarrierService {
      * Cafe24 배송사 전체를 페이지 단위로 조회해 로컬 DB와 동기화한다.
      * Webhook 수신 여부와 무관하게 독립적으로 동작하는 안전망 역할이다(CarrierSyncScheduler가 주기 호출).
      * Cafe24 배송사 목록 API는 변경 시점 필터를 제공하지 않으므로, 매번 전체를 다시 조회한다.
+     *
+     * Cafe24 호출(외부 I/O)에는 트랜잭션을 걸지 않는다 — DB 커넥션을 외부 응답 대기 시간만큼
+     * 점유하지 않기 위함이다(Order와 동일한 이유). 한 건의 upsert가 실패해도 나머지 건은 계속
+     * 처리한다 — 한 건의 실패가 같은 배치의 다른 배송사 반영까지 막아서는 안 되기 때문이다.
      */
-    @Transactional
     public void syncFromCafe24(String mallId) {
         TokenCredential credential = authorizationService.getValidCredential(mallId);
 
@@ -44,8 +46,15 @@ public class CarrierService {
         List<Carrier> page;
         do {
             page = cafe24CarrierPort.getCarriers(mallId, offset, SYNC_PAGE_SIZE, credential);
-            page.forEach(this::upsert);
-            syncedCount += page.size();
+            for (Carrier snapshot : page) {
+                try {
+                    upsert(snapshot);
+                    syncedCount++;
+                } catch (Exception e) {
+                    log.error("Carrier sync 중 1건 실패, 다음 건 계속 진행: mallId={}, shippingCarrierCode={}",
+                            mallId, snapshot.getShippingCarrierCode(), e);
+                }
+            }
             offset += SYNC_PAGE_SIZE;
         } while (page.size() == SYNC_PAGE_SIZE);
 

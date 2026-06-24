@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -177,6 +178,21 @@ class ProductServiceTest {
         verify(cafe24ProductPort).getProducts("mymall", 0, 100, credential);
         verify(cafe24ProductPort).getProducts("mymall", 100, 100, credential);
         verify(repository, times(120)).save(any());
+    }
+
+    @Test
+    void syncFromCafe24는_한_건_처리가_실패해도_나머지_건을_계속_처리한다() {
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+
+        Product failing = product("mymall", 1L, "실패상품", "1000", "500", ProductStatus.ON_SALE);
+        Product succeeding = product("mymall", 2L, "성공상품", "1000", "500", ProductStatus.ON_SALE);
+        given(cafe24ProductPort.getProducts("mymall", 0, 100, credential)).willReturn(List.of(failing, succeeding));
+        given(repository.findByMallIdAndProductNo(any(), any())).willReturn(Optional.empty());
+        willThrow(new RuntimeException("DB 순단")).given(repository).save(failing);
+
+        productService.syncFromCafe24("mymall");
+
+        verify(repository).save(succeeding);
     }
 
     private List<Product> fixedSizeProducts(int size, long startProductNo) {

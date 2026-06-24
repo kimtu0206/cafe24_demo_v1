@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -61,6 +62,27 @@ class CarrierServiceTest {
         verify(cafe24CarrierPort).getCarriers("mymall", 0, 100, credential);
         verify(cafe24CarrierPort).getCarriers("mymall", 100, 100, credential);
         verify(repository, times(120)).save(any());
+    }
+
+    @Test
+    void syncFromCafe24는_한_건_처리가_실패해도_나머지_건을_계속_처리한다() {
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+
+        Carrier failing = Carrier.register(
+                "mymall", null, "fail-1", "실패배송사", null, null, null, null, null, null,
+                ShippingType.DOMESTIC, false, false
+        );
+        Carrier succeeding = Carrier.register(
+                "mymall", null, "ok-1", "성공배송사", null, null, null, null, null, null,
+                ShippingType.DOMESTIC, false, false
+        );
+        given(cafe24CarrierPort.getCarriers("mymall", 0, 100, credential)).willReturn(List.of(failing, succeeding));
+        given(repository.findByMallIdAndShippingCarrierCode(any(), any())).willReturn(Optional.empty());
+        willThrow(new RuntimeException("DB 순단")).given(repository).save(failing);
+
+        carrierService.syncFromCafe24("mymall");
+
+        verify(repository).save(succeeding);
     }
 
     @Test

@@ -107,8 +107,11 @@ public class ProductService {
      * Cafe24 상품 전체를 페이지 단위로 조회해 로컬 DB와 동기화한다.
      * 신규/변경 상품만 반영하고, 로컬에만 있고 Cafe24에는 없는 상품은 그대로 둔다.
      * 매일 23시 ProductSyncScheduler가 호출한다.
+     *
+     * Cafe24 호출(외부 I/O)에는 트랜잭션을 걸지 않는다 — DB 커넥션을 외부 응답 대기 시간만큼
+     * 점유하지 않기 위함이다(Order와 동일한 이유). 한 건의 upsert가 실패해도 나머지 건은 계속
+     * 처리한다 — 한 건의 실패가 같은 배치의 다른 상품 반영까지 막아서는 안 되기 때문이다.
      */
-    @Transactional
     public void syncFromCafe24(String mallId) {
         TokenCredential credential = authorizationService.getValidCredential(mallId);
 
@@ -117,8 +120,15 @@ public class ProductService {
         List<Product> page;
         do {
             page = cafe24ProductPort.getProducts(mallId, offset, SYNC_PAGE_SIZE, credential);
-            page.forEach(this::upsert);
-            syncedCount += page.size();
+            for (Product snapshot : page) {
+                try {
+                    upsert(snapshot);
+                    syncedCount++;
+                } catch (Exception e) {
+                    log.error("Product sync 중 1건 실패, 다음 건 계속 진행: mallId={}, productNo={}",
+                            mallId, snapshot.getProductNo(), e);
+                }
+            }
             offset += SYNC_PAGE_SIZE;
         } while (page.size() == SYNC_PAGE_SIZE);
 
