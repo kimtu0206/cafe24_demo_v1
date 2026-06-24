@@ -3,11 +3,13 @@ package org.example.cafe24_demo_v1.order.application.service;
 import org.example.cafe24_demo_v1.order.domain.model.OrderWebhookEvent;
 import org.example.cafe24_demo_v1.order.domain.model.OrderWebhookEventStatus;
 import org.example.cafe24_demo_v1.order.domain.repository.OrderWebhookEventRepository;
+import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
 
@@ -85,6 +87,33 @@ class OrderWebhookEventServiceTest {
         assertThat(event.getStatus()).isEqualTo(OrderWebhookEventStatus.FAILED);
         assertThat(event.getErrorMessage()).isEqualTo("주문을 찾을 수 없음");
         verify(repository, times(2)).save(event);
+    }
+
+    @Test
+    void processUnprocessed은_Cafe24가_400을_반환하면_재시도없이_즉시_DEAD로_전환한다() {
+        OrderWebhookEvent event = OrderWebhookEvent.receive("mymall", 90023, "ORDER_CREATED", "1", null, "{}");
+        given(repository.findRetryableEvents(any(), any(), eq(50))).willReturn(List.of(event));
+        willThrow(new Cafe24ApiException("Cafe24 order API call failed. status=400", HttpStatus.BAD_REQUEST, "{}", null))
+                .given(orderService).upsertFromWebhook("mymall", "1");
+
+        service.processUnprocessed();
+
+        assertThat(event.getStatus()).isEqualTo(OrderWebhookEventStatus.DEAD);
+        assertThat(event.getNextRetryAt()).isNull();
+        verify(repository, times(2)).save(event);
+    }
+
+    @Test
+    void processUnprocessed은_Cafe24가_5xx를_반환하면_기존_재시도_경로로_처리한다() {
+        OrderWebhookEvent event = OrderWebhookEvent.receive("mymall", 90023, "ORDER_CREATED", "1", null, "{}");
+        given(repository.findRetryableEvents(any(), any(), eq(50))).willReturn(List.of(event));
+        willThrow(new Cafe24ApiException("Cafe24 order API call failed. status=500", HttpStatus.INTERNAL_SERVER_ERROR, "{}", null))
+                .given(orderService).upsertFromWebhook("mymall", "1");
+
+        service.processUnprocessed();
+
+        assertThat(event.getStatus()).isEqualTo(OrderWebhookEventStatus.FAILED);
+        assertThat(event.getNextRetryAt()).isNotNull();
     }
 
     @Test

@@ -4,6 +4,7 @@ import lombok.Getter;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 수신한 주문 생성 Webhook의 원본 데이터와 처리 상태를 담는 도메인 모델.
@@ -16,8 +17,13 @@ public class OrderWebhookEvent {
 
     /** 실패가 이 횟수를 넘으면 더 이상 재시도하지 않고 DEAD로 전환한다. */
     private static final int MAX_RETRY_COUNT = 5;
-    /** 실패한 이벤트를 같은 배치 조회에서 바로 다시 집지 않도록 두는 재시도 간격. */
-    private static final Duration RETRY_BACKOFF = Duration.ofHours(1);
+    /**
+     * 일시 오류로 실패했을 때 다음 재시도까지 기다리는 간격. 재시도 횟수가 늘어날수록
+     * 점진적으로 늘어나며(1분→5분→15분→1시간), 마지막 단계 이후로는 1시간을 유지한다.
+     */
+    private static final List<Duration> RETRY_BACKOFF_SCHEDULE = List.of(
+            Duration.ofMinutes(1), Duration.ofMinutes(5), Duration.ofMinutes(15), Duration.ofHours(1)
+    );
     /**
      * PROCESSING 상태로 머문 시간이 이 값을 넘으면 크래시로 보고 재시도 대상에 다시 포함시킨다.
      * Cafe24OrderClient의 connect/read timeout(3s+5s) 합보다 충분히 길게 잡아, 정상 진행 중인
@@ -102,8 +108,9 @@ public class OrderWebhookEvent {
     }
 
     /**
-     * 주문 테이블 반영에 실패했을 때 호출한다.
-     * retryCount를 늘리고 nextRetryAt을 미래로 미뤄, 같은 배치 조회에서 바로 다시 집히지 않게 한다.
+     * 일시 오류(토큰 만료, 5xx, timeout 등)로 주문 테이블 반영에 실패했을 때 호출한다.
+     * retryCount를 늘리고 nextRetryAt을 재시도 횟수에 따라 점진적으로 미래로 미뤄,
+     * 같은 배치 조회에서 바로 다시 집히지 않게 한다.
      * MAX_RETRY_COUNT를 넘으면 더 이상 재시도하지 않는 DEAD로 전환한다.
      */
     public void markFailed(String errorMessage) {
@@ -111,7 +118,23 @@ public class OrderWebhookEvent {
         this.status = this.retryCount >= MAX_RETRY_COUNT
                 ? OrderWebhookEventStatus.DEAD
                 : OrderWebhookEventStatus.FAILED;
-        this.nextRetryAt = LocalDateTime.now().plus(RETRY_BACKOFF);
+        this.nextRetryAt = LocalDateTime.now().plus(retryBackoff());
+        this.errorMessage = errorMessage;
+    }
+
+    private Duration retryBackoff() {
+        int index = Math.min(retryCount - 1, RETRY_BACKOFF_SCHEDULE.size() - 1);
+        return RETRY_BACKOFF_SCHEDULE.get(index);
+    }
+
+    /**
+     * 영구 오류(잘못된 요청 등 재시도해도 결과가 달라지지 않는 오류)로 실패했을 때 호출한다.
+     * 남은 재시도 예산과 무관하게 즉시 DEAD로 전환해 불필요한 재시도를 막는다.
+     */
+    public void markDead(String errorMessage) {
+        this.retryCount++;
+        this.status = OrderWebhookEventStatus.DEAD;
+        this.nextRetryAt = null;
         this.errorMessage = errorMessage;
     }
 

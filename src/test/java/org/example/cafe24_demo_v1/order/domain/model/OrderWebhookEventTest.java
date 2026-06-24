@@ -2,7 +2,11 @@ package org.example.cafe24_demo_v1.order.domain.model;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 class OrderWebhookEventTest {
 
@@ -60,6 +64,20 @@ class OrderWebhookEventTest {
     }
 
     @Test
+    void markFailed의_재시도_간격은_1분_5분_15분_1시간_순으로_늘어난다() {
+        OrderWebhookEvent event = OrderWebhookEvent.receive("mymall", 90023, "ORDER_CREATED", "1", null, "{}");
+        Duration[] expected = {
+                Duration.ofMinutes(1), Duration.ofMinutes(5), Duration.ofMinutes(15), Duration.ofHours(1)
+        };
+
+        for (Duration backoff : expected) {
+            LocalDateTime before = LocalDateTime.now();
+            event.markFailed("실패");
+            assertThat(event.getNextRetryAt()).isCloseTo(before.plus(backoff), within(2, java.time.temporal.ChronoUnit.SECONDS));
+        }
+    }
+
+    @Test
     void markFailed이_MAX_RETRY_COUNT번_누적되면_DEAD로_전환된다() {
         OrderWebhookEvent event = OrderWebhookEvent.receive("mymall", 90023, "ORDER_CREATED", "1", null, "{}");
 
@@ -71,5 +89,16 @@ class OrderWebhookEventTest {
 
         assertThat(event.getRetryCount()).isEqualTo(5);
         assertThat(event.getStatus()).isEqualTo(OrderWebhookEventStatus.DEAD);
+    }
+
+    @Test
+    void markDead로_영구_오류를_기록하면_재시도_없이_즉시_DEAD로_전환된다() {
+        OrderWebhookEvent event = OrderWebhookEvent.receive("mymall", 90023, "ORDER_CREATED", "1", null, "{}");
+
+        event.markDead("잘못된 요청(400)");
+
+        assertThat(event.getStatus()).isEqualTo(OrderWebhookEventStatus.DEAD);
+        assertThat(event.getErrorMessage()).isEqualTo("잘못된 요청(400)");
+        assertThat(event.getNextRetryAt()).isNull();
     }
 }

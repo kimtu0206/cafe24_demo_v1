@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.order.domain.model.OrderWebhookEvent;
 import org.example.cafe24_demo_v1.order.domain.repository.OrderWebhookEventRepository;
+import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,6 +63,11 @@ public class OrderWebhookEventService {
     /**
      * Cafe24 호출 직전에 PROCESSING으로 한 번 저장해 시도 시작을 기록한 뒤(크래시 시 복구 기준),
      * 호출 결과에 따라 최종 상태로 다시 저장한다.
+     *
+     * Cafe24ApiException이 400(Bad Request)이면 재시도해도 결과가 달라지지 않는 영구 오류로 보고
+     * 즉시 DEAD 처리한다. 401/403/429/5xx는 토큰 재인증 문제나 Cafe24 측 일시적 가용성 문제일 수
+     * 있어 영구 오류로 단정하지 않고, "주문을 찾을 수 없음" 같은 그 외 모든 예외와 함께 기존
+     * 재시도(backoff) 경로로 처리한다.
      */
     private void process(OrderWebhookEvent event) {
         event.markProcessing();
@@ -71,8 +77,18 @@ public class OrderWebhookEventService {
             event.markProcessed();
         } catch (Exception e) {
             log.error("Order webhook event 처리 실패: mallId={}, orderId={}", event.getMallId(), event.getResourceId(), e);
-            event.markFailed(e.getMessage());
+            if (isPermanentError(e)) {
+                event.markDead(e.getMessage());
+            } else {
+                event.markFailed(e.getMessage());
+            }
         }
         repository.save(event);
+    }
+
+    private boolean isPermanentError(Exception e) {
+        return e instanceof Cafe24ApiException cafe24Exception
+                && cafe24Exception.getStatusCode() != null
+                && cafe24Exception.getStatusCode().value() == 400;
     }
 }
