@@ -2,6 +2,7 @@ package org.example.cafe24_demo_v1.carrier.infrastructure.external;
 
 import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
 import org.example.cafe24_demo_v1.carrier.domain.model.Carrier;
+import org.example.cafe24_demo_v1.carrier.domain.model.ShippingType;
 import org.example.cafe24_demo_v1.shared.config.Cafe24Properties;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,6 +18,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
@@ -87,5 +89,70 @@ class Cafe24CarrierClientTest {
 
         assertThat(carriers).isEmpty();
         mockServer.verify();
+    }
+
+    @Test
+    void createCarrier는_shop_no와_request로_감싸서_요청하고_응답을_도메인_모델로_변환한다() {
+        mockServer.expect(requestTo("https://mymall.cafe24api.com/api/v2/admin/carriers"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Authorization", "Bearer access-token"))
+                .andExpect(content().json("""
+                        {"shop_no": 1, "request": {
+                            "shipping_carrier_code": "0022", "shipping_carrier": null,
+                            "contact": "02-0000-0000", "secondary_contact": "02-0000-0000",
+                            "email": "sample@sample.com", "homepage_url": "sample.sample.com",
+                            "shipping_fee_setting": "F"
+                        }}
+                        """))
+                .andRespond(withSuccess("""
+                        {"carrier": {
+                            "carrier_id": 4, "shipping_carrier_code": "0022", "shipping_carrier": "FASTBOX",
+                            "contact": "02-0000-0000", "secondary_contact": "02-0000-0000",
+                            "email": "sample@sample.com", "homepage_url": "sample.sample.com",
+                            "shipping_fee_setting": "F",
+                            "shipping_fee_setting_detail": {"shipping_type": "B"}
+                        }}
+                        """, MediaType.APPLICATION_JSON));
+
+        Carrier created = client.createCarrier(
+                "mymall", "0022", "02-0000-0000", "02-0000-0000", "sample@sample.com",
+                null, "sample.sample.com", null, credential
+        );
+
+        assertThat(created.getCarrierId()).isEqualTo(4L);
+        assertThat(created.getShippingCarrierCode()).isEqualTo("0022");
+        assertThat(created.getShippingCarrierName()).isEqualTo("FASTBOX");
+        assertThat(created.getShippingType()).isEqualTo(ShippingType.DOMESTIC_AND_INTERNATIONAL);
+        assertThat(created.isDefaultCarrier()).isFalse();
+        assertThat(created.isShippingFeeSetting()).isFalse();
+        mockServer.verify();
+    }
+
+    @Test
+    void createCarrier는_shipping_fee_setting_detail이_없으면_ShippingType을_NOT_SET으로_변환한다() {
+        mockServer.expect(requestTo("https://mymall.cafe24api.com/api/v2/admin/carriers"))
+                .andRespond(withSuccess("""
+                        {"carrier": {
+                            "carrier_id": 5, "shipping_carrier_code": "0023", "shipping_carrier": "우체국",
+                            "shipping_fee_setting": "F"
+                        }}
+                        """, MediaType.APPLICATION_JSON));
+
+        Carrier created = client.createCarrier(
+                "mymall", "0023", null, null, null, null, null, null, credential
+        );
+
+        assertThat(created.getShippingType()).isEqualTo(ShippingType.NOT_SET);
+        mockServer.verify();
+    }
+
+    @Test
+    void createCarrier에서_Cafe24가_에러를_반환하면_Cafe24ApiException을_던진다() {
+        mockServer.expect(requestTo("https://mymall.cafe24api.com/api/v2/admin/carriers"))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST).body("{\"error\": \"invalid shipping_carrier_code\"}"));
+
+        assertThatThrownBy(() ->
+                client.createCarrier("mymall", "9999", null, null, null, null, null, null, credential)
+        ).isInstanceOf(Cafe24ApiException.class);
     }
 }

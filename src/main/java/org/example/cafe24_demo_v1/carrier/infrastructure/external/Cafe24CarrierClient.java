@@ -16,6 +16,7 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -63,6 +64,34 @@ public class Cafe24CarrierClient implements Cafe24CarrierPort {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Cafe24에 사전 등록된 배송사 코드를 기준으로 새 배송사를 등록한다.
+     * 배송사명은 Cafe24가 코드로부터 채워 응답하고, 배송비 상세 설정은 항상 미설정("F")으로 보낸다.
+     */
+    @Override
+    public Carrier createCarrier(
+            String mallId,
+            String shippingCarrierCode,
+            String contact,
+            String secondaryContact,
+            String email,
+            BigDecimal defaultShippingFee,
+            String homepageUrl,
+            String trackShipmentUrl,
+            TokenCredential credential
+    ) {
+        String url = baseUrl(mallId) + "/carriers";
+        CarrierCreateRequestPayload payload = new CarrierCreateRequestPayload(
+                shippingCarrierCode, contact, secondaryContact, email, defaultShippingFee, homepageUrl, trackShipmentUrl
+        );
+        CarrierCreateRequest body = new CarrierCreateRequest(payload);
+
+        CarrierCreateResponse response = exchange(
+                url, HttpMethod.POST, new HttpEntity<>(body, headers(credential)), CarrierCreateResponse.class
+        );
+        return toDomain(mallId, response.getCarrier());
+    }
+
     private String baseUrl(String mallId) {
         return "https://" + mallId + ".cafe24api.com/api/v2/admin";
     }
@@ -105,6 +134,31 @@ public class Cafe24CarrierClient implements Cafe24CarrierPort {
                 payload.getHomepageUrl(),
                 ShippingType.from(payload.getShippingType()),
                 "T".equals(payload.getDefaultShippingCarrier()),
+                "T".equals(payload.getShippingFeeSetting())
+        );
+    }
+
+    /**
+     * 배송사 등록 응답 DTO → 도메인 모델 변환.
+     * shipping_type이 shipping_fee_setting_detail 안에 있고, 미설정 등록 시 detail 자체가 없을 수 있다.
+     * default_carrier는 등록 응답에 없는 값이라 false로 두고, 추후 CarrierSyncScheduler의 전체 재동기화가 실제 값으로 갱신한다.
+     */
+    private Carrier toDomain(String mallId, CarrierCreateResponsePayload payload) {
+        ShippingFeeSettingDetail detail = payload.getShippingFeeSettingDetail();
+        String shippingTypeCode = detail != null ? detail.getShippingType() : null;
+        return Carrier.register(
+                mallId,
+                payload.getCarrierId(),
+                payload.getShippingCarrierCode(),
+                payload.getShippingCarrierName(),
+                payload.getContact(),
+                payload.getSecondaryContact(),
+                payload.getEmail(),
+                payload.getTrackShipmentUrl(),
+                payload.getDefaultShippingFee(),
+                payload.getHomepageUrl(),
+                ShippingType.from(shippingTypeCode),
+                false,
                 "T".equals(payload.getShippingFeeSetting())
         );
     }

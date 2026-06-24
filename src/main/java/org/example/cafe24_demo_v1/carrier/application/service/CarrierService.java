@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.authorization.application.service.AppAuthorizationService;
 import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
+import org.example.cafe24_demo_v1.carrier.application.command.RegisterCarrierCommand;
 import org.example.cafe24_demo_v1.carrier.domain.model.Carrier;
 import org.example.cafe24_demo_v1.carrier.domain.repository.CarrierRepository;
 import org.example.cafe24_demo_v1.carrier.domain.service.Cafe24CarrierPort;
@@ -49,6 +50,35 @@ public class CarrierService {
         } while (page.size() == SYNC_PAGE_SIZE);
 
         log.info("Carrier sync finished: mallId={}, syncedCount={}", mallId, syncedCount);
+    }
+
+    /**
+     * Cafe24에 새 배송사를 등록하고 결과를 로컬 DB에 저장한다.
+     * Cafe24 응답 대기 시간만큼 DB 커넥션을 점유하지 않도록 @Transactional을 두지 않는다(외부 호출 후 단건 저장만 수행).
+     */
+    public Carrier registerCarrier(RegisterCarrierCommand command) {
+        // 배송비 상세 설정을 항상 미설정("F")으로 보내므로, Cafe24는 이 경우 default_shipping_fee가 반드시 있어야 한다고 요구한다.
+        if (command.defaultShippingFee() == null) {
+            throw new IllegalArgumentException("defaultShippingFee는 필수입니다. 배송비 상세 설정을 사용하지 않으므로 기본 배송비가 반드시 필요합니다.");
+        }
+
+        TokenCredential credential = authorizationService.getValidCredential(command.mallId());
+
+        Carrier created = cafe24CarrierPort.createCarrier(
+                command.mallId(),
+                command.shippingCarrierCode(),
+                command.contact(),
+                command.secondaryContact(),
+                command.email(),
+                command.defaultShippingFee(),
+                command.homepageUrl(),
+                command.trackShipmentUrl(),
+                credential
+        );
+
+        repository.save(created);
+        log.info("Carrier registered: mallId={}, shippingCarrierCode={}", command.mallId(), created.getShippingCarrierCode());
+        return created;
     }
 
     /** Cafe24 스냅샷을 로컬 DB에 반영한다. 이미 있으면 갱신, 없으면 신규 저장(Upsert). */
