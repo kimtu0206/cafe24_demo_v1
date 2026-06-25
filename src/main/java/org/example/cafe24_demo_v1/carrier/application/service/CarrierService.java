@@ -43,8 +43,17 @@ public class CarrierService {
      * 점유하지 않기 위함이다(Order와 동일한 이유). 한 건의 upsert가 실패해도 나머지 건은 계속
      * 처리한다 — 한 건의 실패가 같은 배치의 다른 배송사 반영까지 막아서는 안 되기 때문이다.
      */
-    public void syncFromCafe24(String mallId) {
-        TokenCredential credential = authorizationService.getValidCredential(mallId);
+    public SyncResult syncFromCafe24(String mallId) {
+        TokenCredential credential;
+        try {
+            credential = authorizationService.getValidCredential(mallId);
+        } catch (Exception e) {
+            log.error("Carrier sync 인증 실패, 이번 실행 중단: mallId={}", mallId, e);
+            SyncResult failure = new SyncResult(0, 0, 1, e.getMessage());
+            syncMetricsService.recordRun(mallId, SyncTarget.CARRIER,
+                    failure.processedCount(), failure.failedCount(), failure.apiFailureCount(), failure.errorMessage());
+            return failure;
+        }
 
         SyncResult result = syncPages(mallId, credential);
         syncMetricsService.recordRun(mallId, SyncTarget.CARRIER,
@@ -52,6 +61,7 @@ public class CarrierService {
 
         log.info("Carrier sync finished: mallId={}, processedCount={}, failedCount={}, apiFailureCount={}",
                 mallId, result.processedCount(), result.failedCount(), result.apiFailureCount());
+        return result;
     }
 
     /**
@@ -89,7 +99,7 @@ public class CarrierService {
         return new SyncResult(processedCount, failedCount, 0, null);
     }
 
-    private record SyncResult(int processedCount, int failedCount, int apiFailureCount, String errorMessage) {}
+    public record SyncResult(int processedCount, int failedCount, int apiFailureCount, String errorMessage) {}
 
     /**
      * Cafe24에 새 배송사를 등록하고 결과를 로컬 DB에 저장한다.

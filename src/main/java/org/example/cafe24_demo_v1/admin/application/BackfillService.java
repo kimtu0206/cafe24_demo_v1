@@ -18,18 +18,18 @@ public class BackfillService {
     private final ProductService productService;
     private final CarrierService carrierService;
 
-    public void backfillOrders(String mallId, LocalDate startDate, LocalDate endDate) {
+    public OrderService.SyncResult backfillOrders(String mallId, LocalDate startDate, LocalDate endDate) {
         log.info("Order backfill requested: mallId={}, startDate={}, endDate={}", mallId, startDate, endDate);
-        orderService.backfillFromCafe24(mallId, startDate, endDate);
+        return orderService.backfillFromCafe24(mallId, startDate, endDate);
     }
 
-    public void backfillProducts(String mallId) {
+    public ProductService.SyncResult backfillProducts(String mallId) {
         log.info("Product backfill requested: mallId={}", mallId);
-        productService.syncFromCafe24(mallId);
+        return productService.syncFromCafe24(mallId);
     }
 
-    public void backfillCarriers(String mallId) {
+    public CarrierService.SyncResult backfillCarriers(String mallId) {
         log.info("Carrier backfill requested: mallId={}", mallId);
-        carrierService.syncFromCafe24(mallId);
+        return carrierService.syncFromCafe24(mallId);
     }
 }

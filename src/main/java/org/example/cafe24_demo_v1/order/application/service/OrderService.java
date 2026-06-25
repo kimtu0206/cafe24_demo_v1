@@ -30,8 +30,14 @@ public class OrderService {
     private final AppAuthorizationService authorizationService;
     private final SyncMetricsService syncMetricsService;
 
-    public void syncFromCafe24(String mallId, LocalDateTime updatedSince) {
-        TokenCredential credential = authorizationService.getValidCredential(mallId);
+    public SyncResult syncFromCafe24(String mallId, LocalDateTime updatedSince) {
+        TokenCredential credential;
+        try {
+            credential = authorizationService.getValidCredential(mallId);
+        } catch (Exception e) {
+            return recordAuthFailure(mallId, "Order sync", e);
+        }
+
         SyncResult result = syncPages(
                 mallId,
                 (offset, limit) -> cafe24OrderPort.getOrders(mallId, updatedSince, offset, limit, credential)
@@ -41,23 +47,50 @@ public class OrderService {
 
         log.info("Order sync finished: mallId={}, updatedSince={}, processedCount={}, failedCount={}, apiFailureCount={}",
                 mallId, updatedSince, result.processedCount(), result.failedCount(), result.apiFailureCount());
+        return result;
     }
 
-    public void backfillFromCafe24(String mallId, LocalDate startDate, LocalDate endDate) {
+    /**
+     * 운영자가 임의 시점에 직접 트리거하는 단발성 재동기화다. 정기 안전망(syncFromCafe24)과는
+     * 별개의 운영 작업이므로 SyncMetricsService(정기 동기화 상태 추적용)에는 기록하지 않는다 —
+     * 결과는 호출자(AdminBackfillController)에게 SyncResult로 직접 반환되어 그 자리에서 바로
+     * 200/502로 확인할 수 있다. 정기 실행의 lastRunAt/lastSuccessAt을 백필 결과로 덮어쓰면
+     * "정기 안전망이 잘 도는지"와 "임의 기간 백필 결과"가 섞여 운영 관측을 혼동시키기 때문이다.
+     */
+    public SyncResult backfillFromCafe24(String mallId, LocalDate startDate, LocalDate endDate) {
         if (startDate.isAfter(endDate)) {
             throw new IllegalArgumentException("startDate must be before or equal to endDate");
         }
 
-        TokenCredential credential = authorizationService.getValidCredential(mallId);
+        TokenCredential credential;
+        try {
+            credential = authorizationService.getValidCredential(mallId);
+        } catch (Exception e) {
+            log.error("Order backfill 인증 실패, 이번 실행 중단: mallId={}", mallId, e);
+            return new SyncResult(0, 0, 1, e.getMessage());
+        }
+
         SyncResult result = syncPages(
                 mallId,
                 (offset, limit) -> cafe24OrderPort.getOrders(mallId, startDate, endDate, offset, limit, credential)
         );
-        syncMetricsService.recordRun(mallId, SyncTarget.ORDER,
-                result.processedCount(), result.failedCount(), result.apiFailureCount(), result.errorMessage());
 
         log.info("Order backfill finished: mallId={}, startDate={}, endDate={}, processedCount={}, failedCount={}, apiFailureCount={}",
                 mallId, startDate, endDate, result.processedCount(), result.failedCount(), result.apiFailureCount());
+        return result;
+    }
+
+    /**
+     * 토큰 조회/갱신(getValidCredential) 실패는 Cafe24 API 호출 자체가 실패한 것과 동일하게
+     * 취급한다 — 이번 실행을 안전하게 중단하고 SyncMetricsService에 기록한 뒤, 예외를 호출자
+     * (스케줄러)까지 전파하지 않는다.
+     */
+    private SyncResult recordAuthFailure(String mallId, String logPrefix, Exception e) {
+        log.error("{} 인증 실패, 이번 실행 중단: mallId={}", logPrefix, mallId, e);
+        SyncResult result = new SyncResult(0, 0, 1, e.getMessage());
+        syncMetricsService.recordRun(mallId, SyncTarget.ORDER,
+                result.processedCount(), result.failedCount(), result.apiFailureCount(), result.errorMessage());
+        return result;
     }
 
     public void upsertFromWebhook(String mallId, String orderId) {
@@ -104,7 +137,7 @@ public class OrderService {
         return new SyncResult(processedCount, failedCount, 0, null);
     }
 
-    private record SyncResult(int processedCount, int failedCount, int apiFailureCount, String errorMessage) {}
+    public record SyncResult(int processedCount, int failedCount, int apiFailureCount, String errorMessage) {}
 
     private void upsert(Order snapshot) {
         try {

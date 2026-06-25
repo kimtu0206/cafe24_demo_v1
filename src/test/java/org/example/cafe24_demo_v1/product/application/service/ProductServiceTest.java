@@ -30,6 +30,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
@@ -254,6 +255,21 @@ class ProductServiceTest {
         verify(repository, never()).deleteByMallIdAndProductNo(any(), any());
         verify(syncMetricsService).recordRun(
                 "mymall", SyncTarget.PRODUCT, 0, 0, 1, apiException.getMessage());
+    }
+
+    @Test
+    void syncFromCafe24는_인증_실패하면_이번_실행만_중단하고_API_실패로_기록한다() {
+        IllegalStateException authException = new IllegalStateException("Authorization not found: mymall");
+        willThrow(authException).given(authorizationService).getValidCredential("mymall");
+
+        ProductService.SyncResult result = productService.syncFromCafe24("mymall");
+
+        assertThat(result.apiFailureCount()).isEqualTo(1);
+        assertThat(result.processedCount()).isZero();
+        verify(repository, never()).findAllByMallId(any());
+        verify(cafe24ProductPort, never()).getProducts(any(), anyInt(), anyInt(), any());
+        verify(syncMetricsService).recordRun(
+                "mymall", SyncTarget.PRODUCT, 0, 0, 1, authException.getMessage());
     }
 
     @Test

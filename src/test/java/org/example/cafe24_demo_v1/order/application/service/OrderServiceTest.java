@@ -31,6 +31,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
@@ -171,6 +172,34 @@ class OrderServiceTest {
     }
 
     @Test
+    void syncFromCafe24는_인증_실패하면_이번_실행만_중단하고_API_실패로_기록한다() {
+        LocalDateTime updatedSince = LocalDateTime.now().minusMinutes(10);
+        IllegalStateException authException = new IllegalStateException("Authorization not found: mymall");
+        willThrow(authException).given(authorizationService).getValidCredential("mymall");
+
+        OrderService.SyncResult result = orderService.syncFromCafe24("mymall", updatedSince);
+
+        assertThat(result.apiFailureCount()).isEqualTo(1);
+        assertThat(result.processedCount()).isZero();
+        verify(syncMetricsService).recordRun("mymall", SyncTarget.ORDER, 0, 0, 1, authException.getMessage());
+        verifyNoInteractions(cafe24OrderPort);
+    }
+
+    @Test
+    void backfillFromCafe24는_인증_실패하면_이번_실행만_중단하고_모니터링에는_기록하지_않는다() {
+        LocalDate startDate = LocalDate.of(2026, 6, 1);
+        LocalDate endDate = LocalDate.of(2026, 6, 24);
+        IllegalStateException authException = new IllegalStateException("Authorization not found: mymall");
+        willThrow(authException).given(authorizationService).getValidCredential("mymall");
+
+        OrderService.SyncResult result = orderService.backfillFromCafe24("mymall", startDate, endDate);
+
+        assertThat(result.apiFailureCount()).isEqualTo(1);
+        verifyNoInteractions(cafe24OrderPort);
+        verifyNoInteractions(syncMetricsService);
+    }
+
+    @Test
     void upsertFromWebhook은_동시_삽입_경쟁으로_충돌하면_재조회후_갱신으로_폴백한다() {
         given(authorizationService.getValidCredential("mymall")).willReturn(credential);
         Order snapshot = order("mymall", "3", "N40", "2000");
@@ -204,7 +233,7 @@ class OrderServiceTest {
         verify(cafe24OrderPort).getOrders("mymall", startDate, endDate, 0, 100, credential);
         verify(cafe24OrderPort).getOrders("mymall", startDate, endDate, 100, 100, credential);
         verify(repository, times(101)).save(any());
-        verify(syncMetricsService).recordRun("mymall", SyncTarget.ORDER, 101, 0, 0, null);
+        verifyNoInteractions(syncMetricsService);
     }
 
     private List<Order> fixedSizeOrders(int size, String orderIdPrefix) {

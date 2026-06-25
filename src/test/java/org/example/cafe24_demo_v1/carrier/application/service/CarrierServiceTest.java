@@ -27,8 +27,10 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -103,6 +105,20 @@ class CarrierServiceTest {
 
         verify(syncMetricsService).recordRun(
                 "mymall", SyncTarget.CARRIER, 0, 0, 1, apiException.getMessage());
+    }
+
+    @Test
+    void syncFromCafe24는_인증_실패하면_이번_실행만_중단하고_API_실패로_기록한다() {
+        IllegalStateException authException = new IllegalStateException("Authorization not found: mymall");
+        willThrow(authException).given(authorizationService).getValidCredential("mymall");
+
+        CarrierService.SyncResult result = carrierService.syncFromCafe24("mymall");
+
+        assertThat(result.apiFailureCount()).isEqualTo(1);
+        assertThat(result.processedCount()).isZero();
+        verify(cafe24CarrierPort, never()).getCarriers(any(), anyInt(), anyInt(), any());
+        verify(syncMetricsService).recordRun(
+                "mymall", SyncTarget.CARRIER, 0, 0, 1, authException.getMessage());
     }
 
     @Test
