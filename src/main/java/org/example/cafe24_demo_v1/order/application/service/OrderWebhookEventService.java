@@ -3,6 +3,7 @@ package org.example.cafe24_demo_v1.order.application.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.order.domain.model.OrderWebhookEvent;
+import org.example.cafe24_demo_v1.order.domain.model.OrderWebhookEventStatus;
 import org.example.cafe24_demo_v1.order.domain.repository.OrderWebhookEventRepository;
 import org.example.cafe24_demo_v1.shared.config.WorkerProperties;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
@@ -93,4 +94,20 @@ public class OrderWebhookEventService {
                 && cafe24Exception.getStatusCode() != null
                 && cafe24Exception.getStatusCode().value() == 400;
     }
+
+    /**
+     * 운영 관측용 Webhook 처리 현황을 집계한다.
+     * unprocessedCount는 아직 order 테이블에 반영되지 않고 재시도 대상으로 남아있는 건수
+     * (RECEIVED/PROCESSING/FAILED 합)이고, failedCount/deadCount는 그중 실패 단계별 세부 건수다.
+     */
+    public WebhookMetrics getMetrics() {
+        long received = repository.countByStatus(OrderWebhookEventStatus.RECEIVED);
+        long processing = repository.countByStatus(OrderWebhookEventStatus.PROCESSING);
+        long failed = repository.countByStatus(OrderWebhookEventStatus.FAILED);
+        long dead = repository.countByStatus(OrderWebhookEventStatus.DEAD);
+        long totalRetryCount = repository.sumRetryCount();
+        return new WebhookMetrics(received + processing + failed, failed, dead, totalRetryCount);
+    }
+
+    public record WebhookMetrics(long unprocessedCount, long failedCount, long deadCount, long totalRetryCount) {}
 }

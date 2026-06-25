@@ -23,4 +23,9 @@ interface OrderWebhookEventJpaRepository extends JpaRepository<OrderWebhookEvent
             @Param("processingStaleBefore") LocalDateTime processingStaleBefore,
             Pageable pageable
     );
+
+    long countByStatus(String status);
+
+    @Query("SELECT COALESCE(SUM(e.retryCount), 0) FROM OrderWebhookEventEntity e")
+    long sumRetryCount();
 }

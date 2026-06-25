@@ -2,6 +2,7 @@ package org.example.cafe24_demo_v1.order.infrastructure.persistence;
 
 import lombok.RequiredArgsConstructor;
 import org.example.cafe24_demo_v1.order.domain.model.OrderWebhookEvent;
+import org.example.cafe24_demo_v1.order.domain.model.OrderWebhookEventStatus;
 import org.example.cafe24_demo_v1.order.domain.repository.OrderWebhookEventRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
@@ -34,5 +35,15 @@ public class OrderWebhookEventRepositoryAdapter implements OrderWebhookEventRepo
         return jpaRepository.findRetryable(now, processingStaleBefore, PageRequest.of(0, limit)).stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public long countByStatus(OrderWebhookEventStatus status) {
+        return jpaRepository.countByStatus(status.name());
+    }
+
+    @Override
+    public long sumRetryCount() {
+        return jpaRepository.sumRetryCount();
     }
 }

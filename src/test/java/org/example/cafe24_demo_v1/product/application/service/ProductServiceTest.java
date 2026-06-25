@@ -2,6 +2,8 @@ package org.example.cafe24_demo_v1.product.application.service;
 
 import org.example.cafe24_demo_v1.authorization.application.service.AppAuthorizationService;
 import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
+import org.example.cafe24_demo_v1.monitoring.application.service.SyncMetricsService;
+import org.example.cafe24_demo_v1.monitoring.domain.model.SyncTarget;
 import org.example.cafe24_demo_v1.product.application.command.CreateProductCommand;
 import org.example.cafe24_demo_v1.product.application.command.DeleteProductCommand;
 import org.example.cafe24_demo_v1.product.application.command.UpdateProductCommand;
@@ -11,12 +13,14 @@ import org.example.cafe24_demo_v1.product.domain.model.ProductRegistration;
 import org.example.cafe24_demo_v1.product.domain.model.ProductStatus;
 import org.example.cafe24_demo_v1.product.domain.repository.ProductRepository;
 import org.example.cafe24_demo_v1.product.domain.service.Cafe24ProductPort;
+import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -39,6 +43,7 @@ class ProductServiceTest {
     @Mock private ProductRepository repository;
     @Mock private Cafe24ProductPort cafe24ProductPort;
     @Mock private AppAuthorizationService authorizationService;
+    @Mock private SyncMetricsService syncMetricsService;
 
     private ProductService productService;
 
@@ -48,7 +53,7 @@ class ProductServiceTest {
 
     @BeforeEach
     void setUp() {
-        productService = new ProductService(repository, cafe24ProductPort, authorizationService);
+        productService = new ProductService(repository, cafe24ProductPort, authorizationService, syncMetricsService);
     }
 
     @Test
@@ -233,6 +238,22 @@ class ProductServiceTest {
         productService.syncFromCafe24("mymall");
 
         verify(repository).save(succeeding);
+        verify(syncMetricsService).recordRun("mymall", SyncTarget.PRODUCT, 1, 1, 0, null);
+    }
+
+    @Test
+    void syncFromCafe24는_Cafe24_API_호출이_실패하면_이번_실행만_중단하고_누락_보정도_건너뛴다() {
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        Cafe24ApiException apiException = new Cafe24ApiException(
+                "Cafe24 product API call failed. status=500", HttpStatus.INTERNAL_SERVER_ERROR, "{}", null);
+        willThrow(apiException).given(cafe24ProductPort).getProducts("mymall", 0, 100, credential);
+
+        productService.syncFromCafe24("mymall");
+
+        verify(repository, never()).findAllByMallId(any());
+        verify(repository, never()).deleteByMallIdAndProductNo(any(), any());
+        verify(syncMetricsService).recordRun(
+                "mymall", SyncTarget.PRODUCT, 0, 0, 1, apiException.getMessage());
     }
 
     @Test

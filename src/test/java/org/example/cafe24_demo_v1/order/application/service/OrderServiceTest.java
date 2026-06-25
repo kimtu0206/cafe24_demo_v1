@@ -2,16 +2,20 @@ package org.example.cafe24_demo_v1.order.application.service;
 
 import org.example.cafe24_demo_v1.authorization.application.service.AppAuthorizationService;
 import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
+import org.example.cafe24_demo_v1.monitoring.application.service.SyncMetricsService;
+import org.example.cafe24_demo_v1.monitoring.domain.model.SyncTarget;
 import org.example.cafe24_demo_v1.order.domain.model.Order;
 import org.example.cafe24_demo_v1.order.domain.model.OrderEmbeddedResources;
 import org.example.cafe24_demo_v1.order.domain.repository.OrderRepository;
 import org.example.cafe24_demo_v1.order.domain.service.Cafe24OrderPort;
+import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -34,6 +38,7 @@ class OrderServiceTest {
     @Mock private OrderRepository repository;
     @Mock private Cafe24OrderPort cafe24OrderPort;
     @Mock private AppAuthorizationService authorizationService;
+    @Mock private SyncMetricsService syncMetricsService;
 
     private OrderService orderService;
 
@@ -43,7 +48,7 @@ class OrderServiceTest {
 
     @BeforeEach
     void setUp() {
-        orderService = new OrderService(repository, cafe24OrderPort, authorizationService);
+        orderService = new OrderService(repository, cafe24OrderPort, authorizationService, syncMetricsService);
     }
 
     @Test
@@ -148,6 +153,21 @@ class OrderServiceTest {
         orderService.syncFromCafe24("mymall", updatedSince);
 
         verify(repository).save(succeeding);
+        verify(syncMetricsService).recordRun("mymall", SyncTarget.ORDER, 1, 1, 0, null);
+    }
+
+    @Test
+    void syncFromCafe24는_Cafe24_API_호출이_실패하면_이번_실행만_중단하고_API_실패로_기록한다() {
+        LocalDateTime updatedSince = LocalDateTime.now().minusMinutes(10);
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        Cafe24ApiException apiException = new Cafe24ApiException(
+                "Cafe24 order API call failed. status=500", HttpStatus.INTERNAL_SERVER_ERROR, "{}", null);
+        willThrow(apiException).given(cafe24OrderPort).getOrders("mymall", updatedSince, 0, 100, credential);
+
+        orderService.syncFromCafe24("mymall", updatedSince);
+
+        verify(syncMetricsService).recordRun(
+                "mymall", SyncTarget.ORDER, 0, 0, 1, apiException.getMessage());
     }
 
     @Test
@@ -184,6 +204,7 @@ class OrderServiceTest {
         verify(cafe24OrderPort).getOrders("mymall", startDate, endDate, 0, 100, credential);
         verify(cafe24OrderPort).getOrders("mymall", startDate, endDate, 100, 100, credential);
         verify(repository, times(101)).save(any());
+        verify(syncMetricsService).recordRun("mymall", SyncTarget.ORDER, 101, 0, 0, null);
     }
 
     private List<Order> fixedSizeOrders(int size, String orderIdPrefix) {

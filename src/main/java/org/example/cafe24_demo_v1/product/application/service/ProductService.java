@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.authorization.application.service.AppAuthorizationService;
 import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
+import org.example.cafe24_demo_v1.monitoring.application.service.SyncMetricsService;
+import org.example.cafe24_demo_v1.monitoring.domain.model.SyncTarget;
 import org.example.cafe24_demo_v1.product.application.command.CreateProductCommand;
 import org.example.cafe24_demo_v1.product.application.command.DeleteProductCommand;
 import org.example.cafe24_demo_v1.product.application.command.UpdateProductCommand;
@@ -12,6 +14,7 @@ import org.example.cafe24_demo_v1.product.domain.model.ProductPage;
 import org.example.cafe24_demo_v1.product.domain.model.ProductRegistration;
 import org.example.cafe24_demo_v1.product.domain.repository.ProductRepository;
 import org.example.cafe24_demo_v1.product.domain.service.Cafe24ProductPort;
+import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +40,7 @@ public class ProductService {
     private final ProductRepository repository;
     private final Cafe24ProductPort cafe24ProductPort;
     private final AppAuthorizationService authorizationService;
+    private final SyncMetricsService syncMetricsService;
 
     /**
      * Cafe24에 신규 상품을 등록하고, 등록 결과(product_no, 상품명, 판매가, 상태)를 로컬 DB에 저장한다.
@@ -128,29 +132,58 @@ public class ProductService {
     public void syncFromCafe24(String mallId) {
         TokenCredential credential = authorizationService.getValidCredential(mallId);
 
+        SyncResult result = syncPages(mallId, credential);
+        if (result.apiFailureCount() == 0) {
+            // Cafe24 API 호출이 끝까지 성공했을 때만 전체 목록(seenProductNos)이 완전하므로,
+            // 중간에 실패해 일부만 조회된 상태로 reconcileMissingProducts를 돌리면 정상 상품을
+            // 누락으로 잘못 판단할 수 있다.
+            reconcileMissingProducts(mallId, result.seenProductNos());
+        }
+        syncMetricsService.recordRun(mallId, SyncTarget.PRODUCT,
+                result.processedCount(), result.failedCount(), result.apiFailureCount(), result.errorMessage());
+
+        log.info("Product sync finished: mallId={}, processedCount={}, failedCount={}, apiFailureCount={}",
+                mallId, result.processedCount(), result.failedCount(), result.apiFailureCount());
+    }
+
+    /**
+     * Cafe24 API 호출(getProducts) 자체가 실패하면 더 이상 다음 페이지를 시도하지 않고 이번
+     * 실행만 안전하게 종료한다 — 누락된 나머지는 다음 스케줄 실행이 보완한다.
+     */
+    private SyncResult syncPages(String mallId, TokenCredential credential) {
         int offset = 0;
-        int syncedCount = 0;
+        int processedCount = 0;
+        int failedCount = 0;
         Set<Long> seenProductNos = new HashSet<>();
         List<Product> page;
-        do {
-            page = cafe24ProductPort.getProducts(mallId, offset, SYNC_PAGE_SIZE, credential);
+        while (true) {
+            try {
+                page = cafe24ProductPort.getProducts(mallId, offset, SYNC_PAGE_SIZE, credential);
+            } catch (Cafe24ApiException e) {
+                log.error("Product sync Cafe24 API 호출 실패, 이번 실행 중단: mallId={}, offset={}", mallId, offset, e);
+                return new SyncResult(processedCount, failedCount, 1, e.getMessage(), seenProductNos);
+            }
             for (Product snapshot : page) {
                 seenProductNos.add(snapshot.getProductNo());
                 try {
                     upsert(snapshot);
-                    syncedCount++;
+                    processedCount++;
                 } catch (Exception e) {
                     log.error("Product sync 중 1건 실패, 다음 건 계속 진행: mallId={}, productNo={}",
                             mallId, snapshot.getProductNo(), e);
+                    failedCount++;
                 }
             }
             offset += SYNC_PAGE_SIZE;
-        } while (page.size() == SYNC_PAGE_SIZE);
+            if (page.size() < SYNC_PAGE_SIZE) {
+                break;
+            }
+        }
 
-        reconcileMissingProducts(mallId, seenProductNos);
-
-        log.info("Product sync finished: mallId={}, syncedCount={}", mallId, syncedCount);
+        return new SyncResult(processedCount, failedCount, 0, null, seenProductNos);
     }
+
+    private record SyncResult(int processedCount, int failedCount, int apiFailureCount, String errorMessage, Set<Long> seenProductNos) {}
 
     /**
      * 이번 전체 동기화에서 Cafe24 응답에 없었던 로컬 상품을 정리한다.

@@ -121,6 +121,22 @@ class OrderWebhookEventServiceTest {
     }
 
     @Test
+    void getMetrics는_상태별_건수와_재시도_합계를_집계한다() {
+        given(repository.countByStatus(OrderWebhookEventStatus.RECEIVED)).willReturn(3L);
+        given(repository.countByStatus(OrderWebhookEventStatus.PROCESSING)).willReturn(1L);
+        given(repository.countByStatus(OrderWebhookEventStatus.FAILED)).willReturn(2L);
+        given(repository.countByStatus(OrderWebhookEventStatus.DEAD)).willReturn(4L);
+        given(repository.sumRetryCount()).willReturn(15L);
+
+        OrderWebhookEventService.WebhookMetrics metrics = service.getMetrics();
+
+        assertThat(metrics.unprocessedCount()).isEqualTo(6L);
+        assertThat(metrics.failedCount()).isEqualTo(2L);
+        assertThat(metrics.deadCount()).isEqualTo(4L);
+        assertThat(metrics.totalRetryCount()).isEqualTo(15L);
+    }
+
+    @Test
     void processUnprocessed은_같은_실행안에서_실패건을_무한정_재조회하지_않는다() {
         List<OrderWebhookEvent> fullBatch = java.util.stream.IntStream.range(0, 50)
                 .mapToObj(i -> OrderWebhookEvent.receive("mymall", 90023 + i, "ORDER_CREATED", String.valueOf(i), null, "{}"))

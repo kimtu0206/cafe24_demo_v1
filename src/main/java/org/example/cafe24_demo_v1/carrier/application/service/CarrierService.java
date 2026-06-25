@@ -8,6 +8,9 @@ import org.example.cafe24_demo_v1.carrier.application.command.RegisterCarrierCom
 import org.example.cafe24_demo_v1.carrier.domain.model.Carrier;
 import org.example.cafe24_demo_v1.carrier.domain.repository.CarrierRepository;
 import org.example.cafe24_demo_v1.carrier.domain.service.Cafe24CarrierPort;
+import org.example.cafe24_demo_v1.monitoring.application.service.SyncMetricsService;
+import org.example.cafe24_demo_v1.monitoring.domain.model.SyncTarget;
+import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +32,7 @@ public class CarrierService {
     private final CarrierRepository repository;
     private final Cafe24CarrierPort cafe24CarrierPort;
     private final AppAuthorizationService authorizationService;
+    private final SyncMetricsService syncMetricsService;
 
     /**
      * Cafe24 배송사 전체를 페이지 단위로 조회해 로컬 DB와 동기화한다.
@@ -42,25 +46,50 @@ public class CarrierService {
     public void syncFromCafe24(String mallId) {
         TokenCredential credential = authorizationService.getValidCredential(mallId);
 
+        SyncResult result = syncPages(mallId, credential);
+        syncMetricsService.recordRun(mallId, SyncTarget.CARRIER,
+                result.processedCount(), result.failedCount(), result.apiFailureCount(), result.errorMessage());
+
+        log.info("Carrier sync finished: mallId={}, processedCount={}, failedCount={}, apiFailureCount={}",
+                mallId, result.processedCount(), result.failedCount(), result.apiFailureCount());
+    }
+
+    /**
+     * Cafe24 API 호출(getCarriers) 자체가 실패하면 더 이상 다음 페이지를 시도하지 않고 이번
+     * 실행만 안전하게 종료한다 — 누락된 나머지는 다음 스케줄 실행이 보완한다.
+     */
+    private SyncResult syncPages(String mallId, TokenCredential credential) {
         int offset = 0;
-        int syncedCount = 0;
+        int processedCount = 0;
+        int failedCount = 0;
         List<Carrier> page;
-        do {
-            page = cafe24CarrierPort.getCarriers(mallId, offset, SYNC_PAGE_SIZE, credential);
+        while (true) {
+            try {
+                page = cafe24CarrierPort.getCarriers(mallId, offset, SYNC_PAGE_SIZE, credential);
+            } catch (Cafe24ApiException e) {
+                log.error("Carrier sync Cafe24 API 호출 실패, 이번 실행 중단: mallId={}, offset={}", mallId, offset, e);
+                return new SyncResult(processedCount, failedCount, 1, e.getMessage());
+            }
             for (Carrier snapshot : page) {
                 try {
                     upsert(snapshot);
-                    syncedCount++;
+                    processedCount++;
                 } catch (Exception e) {
                     log.error("Carrier sync 중 1건 실패, 다음 건 계속 진행: mallId={}, shippingCarrierCode={}",
                             mallId, snapshot.getShippingCarrierCode(), e);
+                    failedCount++;
                 }
             }
             offset += SYNC_PAGE_SIZE;
-        } while (page.size() == SYNC_PAGE_SIZE);
+            if (page.size() < SYNC_PAGE_SIZE) {
+                break;
+            }
+        }
 
-        log.info("Carrier sync finished: mallId={}, syncedCount={}", mallId, syncedCount);
+        return new SyncResult(processedCount, failedCount, 0, null);
     }
+
+    private record SyncResult(int processedCount, int failedCount, int apiFailureCount, String errorMessage) {}
 
     /**
      * Cafe24에 새 배송사를 등록하고 결과를 로컬 DB에 저장한다.

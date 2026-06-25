@@ -1,6 +1,7 @@
 package org.example.cafe24_demo_v1.order.domain.repository;
 
 import org.example.cafe24_demo_v1.order.domain.model.OrderWebhookEvent;
+import org.example.cafe24_demo_v1.order.domain.model.OrderWebhookEventStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,4 +26,10 @@ public interface OrderWebhookEventRepository {
      * DEAD/PROCESSED 상태는 대상에서 제외된다.
      */
     List<OrderWebhookEvent> findRetryableEvents(LocalDateTime now, LocalDateTime processingStaleBefore, int limit);
+
+    /** 주어진 상태의 이벤트 건수를 센다. */
+    long countByStatus(OrderWebhookEventStatus status);
+
+    /** 전체 이벤트의 retryCount 합계를 구한다(이벤트가 하나도 없으면 0). */
+    long sumRetryCount();
 }

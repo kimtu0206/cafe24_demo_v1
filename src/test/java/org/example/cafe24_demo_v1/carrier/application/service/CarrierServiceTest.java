@@ -7,12 +7,16 @@ import org.example.cafe24_demo_v1.carrier.domain.model.Carrier;
 import org.example.cafe24_demo_v1.carrier.domain.model.ShippingType;
 import org.example.cafe24_demo_v1.carrier.domain.repository.CarrierRepository;
 import org.example.cafe24_demo_v1.carrier.domain.service.Cafe24CarrierPort;
+import org.example.cafe24_demo_v1.monitoring.application.service.SyncMetricsService;
+import org.example.cafe24_demo_v1.monitoring.domain.model.SyncTarget;
+import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -35,6 +39,7 @@ class CarrierServiceTest {
     @Mock private CarrierRepository repository;
     @Mock private Cafe24CarrierPort cafe24CarrierPort;
     @Mock private AppAuthorizationService authorizationService;
+    @Mock private SyncMetricsService syncMetricsService;
 
     private CarrierService carrierService;
 
@@ -44,7 +49,7 @@ class CarrierServiceTest {
 
     @BeforeEach
     void setUp() {
-        carrierService = new CarrierService(repository, cafe24CarrierPort, authorizationService);
+        carrierService = new CarrierService(repository, cafe24CarrierPort, authorizationService, syncMetricsService);
     }
 
     @Test
@@ -84,6 +89,20 @@ class CarrierServiceTest {
         carrierService.syncFromCafe24("mymall");
 
         verify(repository).save(succeeding);
+        verify(syncMetricsService).recordRun("mymall", SyncTarget.CARRIER, 1, 1, 0, null);
+    }
+
+    @Test
+    void syncFromCafe24는_Cafe24_API_호출이_실패하면_이번_실행만_중단한다() {
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        Cafe24ApiException apiException = new Cafe24ApiException(
+                "Cafe24 carrier API call failed. status=500", HttpStatus.INTERNAL_SERVER_ERROR, "{}", null);
+        willThrow(apiException).given(cafe24CarrierPort).getCarriers("mymall", 0, 100, credential);
+
+        carrierService.syncFromCafe24("mymall");
+
+        verify(syncMetricsService).recordRun(
+                "mymall", SyncTarget.CARRIER, 0, 0, 1, apiException.getMessage());
     }
 
     @Test
@@ -146,7 +165,7 @@ class CarrierServiceTest {
         assertThatThrownBy(() -> carrierService.registerCarrier(command))
                 .isInstanceOf(IllegalArgumentException.class);
 
-        verifyNoInteractions(authorizationService, cafe24CarrierPort, repository);
+        verifyNoInteractions(authorizationService, cafe24CarrierPort, repository, syncMetricsService);
     }
 
     private List<Carrier> fixedSizeCarriers(int size, int startCode) {
