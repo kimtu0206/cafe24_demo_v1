@@ -5,6 +5,7 @@ import org.example.cafe24_demo_v1.order.domain.model.OrderWebhookEventStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 주문 Webhook 이벤트(cafe24_order_webhook_event) 저장소 포트(인터페이스).
@@ -13,6 +14,8 @@ import java.util.List;
  * 실제 구현체(JPA)는 infrastructure 레이어의 OrderWebhookEventRepositoryAdapter가 담당한다.
  */
 public interface OrderWebhookEventRepository {
+
+    Optional<OrderWebhookEvent> findById(Long id);
 
     /** eventNo + mallId + resourceId 조합이 이미 수신된 이벤트인지 확인한다. */
     boolean exists(Integer eventNo, String mallId, String resourceId);

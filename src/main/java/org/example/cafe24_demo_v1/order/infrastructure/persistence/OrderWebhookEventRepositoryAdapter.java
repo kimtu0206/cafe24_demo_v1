@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Repository
@@ -17,6 +18,11 @@ public class OrderWebhookEventRepositoryAdapter implements OrderWebhookEventRepo
 
     private final OrderWebhookEventJpaRepository jpaRepository;
     private final OrderWebhookEventMapper mapper;
+
+    @Override
+    public Optional<OrderWebhookEvent> findById(Long id) {
+        return jpaRepository.findById(id).map(mapper::toDomain);
+    }
 
     @Override
     public boolean exists(Integer eventNo, String mallId, String resourceId) {

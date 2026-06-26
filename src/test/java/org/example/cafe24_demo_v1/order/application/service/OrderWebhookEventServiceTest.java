@@ -13,8 +13,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
 import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -134,6 +137,39 @@ class OrderWebhookEventServiceTest {
         assertThat(metrics.failedCount()).isEqualTo(2L);
         assertThat(metrics.deadCount()).isEqualTo(4L);
         assertThat(metrics.totalRetryCount()).isEqualTo(15L);
+    }
+
+    @Test
+    void retryDead는_DEAD_이벤트를_RECEIVED로_초기화하고_저장한다() {
+        OrderWebhookEvent event = OrderWebhookEvent.receive("mymall", 90023, "ORDER_CREATED", "1", null, "{}");
+        event.markDead("영구 오류");
+        given(repository.findById(1L)).willReturn(Optional.of(event));
+
+        service.retryDead(1L);
+
+        assertThat(event.getStatus()).isEqualTo(OrderWebhookEventStatus.RECEIVED);
+        assertThat(event.getRetryCount()).isZero();
+        verify(repository).save(event);
+    }
+
+    @Test
+    void retryDead는_이벤트가_없으면_NoSuchElementException을_던진다() {
+        given(repository.findById(999L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.retryDead(999L))
+                .isInstanceOf(NoSuchElementException.class);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void retryDead는_DEAD가_아닌_이벤트면_IllegalStateException을_던진다() {
+        OrderWebhookEvent event = OrderWebhookEvent.receive("mymall", 90023, "ORDER_CREATED", "1", null, "{}");
+        event.markFailed("일시 오류", 5);
+        given(repository.findById(1L)).willReturn(Optional.of(event));
+
+        assertThatThrownBy(() -> service.retryDead(1L))
+                .isInstanceOf(IllegalStateException.class);
+        verify(repository, never()).save(any());
     }
 
     @Test

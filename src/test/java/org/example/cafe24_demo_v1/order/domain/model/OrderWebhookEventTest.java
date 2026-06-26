@@ -101,4 +101,19 @@ class OrderWebhookEventTest {
         assertThat(event.getErrorMessage()).isEqualTo("잘못된 요청(400)");
         assertThat(event.getNextRetryAt()).isNull();
     }
+
+    @Test
+    void resetForRetry로_DEAD_이벤트를_RECEIVED로_초기화한다() {
+        OrderWebhookEvent event = OrderWebhookEvent.receive("mymall", 90023, "ORDER_CREATED", "1", null, "{}");
+        event.markFailed("일시 오류", 5);
+        event.markFailed("일시 오류", 5);
+        event.markDead("영구 오류");
+
+        event.resetForRetry();
+
+        assertThat(event.getStatus()).isEqualTo(OrderWebhookEventStatus.RECEIVED);
+        assertThat(event.getRetryCount()).isZero();
+        assertThat(event.getNextRetryAt()).isNull();
+        assertThat(event.getErrorMessage()).isNull();
+    }
 }

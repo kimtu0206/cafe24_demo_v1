@@ -137,6 +137,17 @@ public class OrderWebhookEvent {
         this.errorMessage = errorMessage;
     }
 
+    /**
+     * DEAD 상태인 이벤트를 다시 시도할 수 있도록 RECEIVED 상태로 초기화한다.
+     * 상태가 DEAD인지 검증은 호출자(application 레이어)가 담당한다.
+     */
+    public void resetForRetry() {
+        this.status = OrderWebhookEventStatus.RECEIVED;
+        this.retryCount = 0;
+        this.nextRetryAt = null;
+        this.errorMessage = null;
+    }
+
     public boolean isProcessed() {
         return this.status == OrderWebhookEventStatus.PROCESSED;
     }

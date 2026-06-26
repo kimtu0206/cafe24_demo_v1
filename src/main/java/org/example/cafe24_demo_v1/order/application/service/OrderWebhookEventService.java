@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * 주문 생성 Webhook의 원본 데이터 저장과 비동기 처리(재시도 포함)를 담당하는 애플리케이션 서비스.
@@ -107,6 +108,22 @@ public class OrderWebhookEventService {
         long dead = repository.countByStatus(OrderWebhookEventStatus.DEAD);
         long totalRetryCount = repository.sumRetryCount();
         return new WebhookMetrics(received + processing + failed, failed, dead, totalRetryCount);
+    }
+
+    /**
+     * DEAD 상태인 이벤트를 RECEIVED 상태로 초기화해 다음 처리 주기에 재시도되도록 한다.
+     * 이벤트가 없으면 NoSuchElementException, DEAD 상태가 아니면 IllegalStateException을 던진다.
+     */
+    @Transactional
+    public void retryDead(Long id) {
+        OrderWebhookEvent event = repository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("OrderWebhookEvent not found: id=" + id));
+        if (event.getStatus() != OrderWebhookEventStatus.DEAD) {
+            throw new IllegalStateException("DEAD 상태가 아닌 이벤트는 수동 재시도할 수 없습니다: status=" + event.getStatus());
+        }
+        event.resetForRetry();
+        repository.save(event);
+        log.info("Order webhook event 수동 재시도 등록: id={}, mallId={}, orderId={}", id, event.getMallId(), event.getResourceId());
     }
 
     public record WebhookMetrics(long unprocessedCount, long failedCount, long deadCount, long totalRetryCount) {}
