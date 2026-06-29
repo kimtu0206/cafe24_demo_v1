@@ -5,16 +5,13 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.benefit.application.command.CreateBenefitCommand;
 import org.example.cafe24_demo_v1.benefit.application.service.BenefitService;
 import org.example.cafe24_demo_v1.benefit.domain.model.Benefit;
 import org.example.cafe24_demo_v1.benefit.domain.model.PeriodSale;
 import org.example.cafe24_demo_v1.shared.config.Cafe24Properties;
-import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,7 +23,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Tag(name = "Benefits", description = "혜택 목록 조회 — Cafe24 Admin API 연동 (실패 시 502 반환)")
-@Slf4j
 @RestController
 @RequestMapping("/benefits")
 @RequiredArgsConstructor
@@ -56,13 +52,6 @@ public class BenefitController {
         CreateBenefitCommand command = request.toCommand(cafe24Properties.getMallId());
         Benefit benefit = benefitService.create(command);
         return ResponseEntity.status(HttpStatus.CREATED).body(new BenefitCreatedResponse(BenefitResponse.from(benefit)));
-    }
-
-    @ExceptionHandler(Cafe24ApiException.class)
-    public ResponseEntity<String> handleCafe24ApiException(Cafe24ApiException e) {
-        log.error("Cafe24 benefit API error: {}, body={}", e.getMessage(), e.getResponseBody());
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                .body("Cafe24 API 호출에 실패했습니다: " + e.getMessage() + "\nCafe24 응답: " + e.getResponseBody());
     }
 
     private record BenefitResponse(

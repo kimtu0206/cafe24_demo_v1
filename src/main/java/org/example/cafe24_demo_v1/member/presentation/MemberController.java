@@ -4,15 +4,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.member.application.service.MemberService;
 import org.example.cafe24_demo_v1.member.domain.model.Member;
 import org.example.cafe24_demo_v1.shared.config.Cafe24Properties;
-import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -22,7 +18,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Tag(name = "Members", description = "회원 검색 — Cafe24 Admin API 연동 (실패 시 502 반환)")
-@Slf4j
 @RestController
 @RequestMapping("/members")
 @RequiredArgsConstructor
@@ -47,12 +42,6 @@ public class MemberController {
         List<Member> members = memberService.search(cafe24Properties.getMallId(), memberId, cellphone);
         List<MemberResponse> response = members.stream().map(MemberResponse::from).toList();
         return ResponseEntity.ok(new MemberListResponse(response, response.size()));
-    }
-
-    @ExceptionHandler(Cafe24ApiException.class)
-    public ResponseEntity<String> handleCafe24ApiException(Cafe24ApiException e) {
-        log.error("Cafe24 member API error: {}", e.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body("Cafe24 API 호출에 실패했습니다: " + e.getMessage());
     }
 
     private record MemberResponse(

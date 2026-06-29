@@ -149,7 +149,7 @@ public class WebhookEventService {
             return;
         }
 
-        carrierWebhookEventRepository.save(event.getEventNo(), "CARRIER_CREATED", event.getMallId(), resourceId);
+        carrierWebhookEventRepository.save(event.getEventNo(), WebhookEventType.CARRIER_CREATED.name(), event.getMallId(), resourceId);
         log.info("Carrier created: mallId={}, shippingCarrierCode={}", event.getMallId(), resourceId);
     }
 
@@ -167,7 +167,7 @@ public class WebhookEventService {
             return;
         }
 
-        carrierWebhookEventRepository.save(event.getEventNo(), "CARRIER_UPDATED", event.getMallId(), resourceId);
+        carrierWebhookEventRepository.save(event.getEventNo(), WebhookEventType.CARRIER_UPDATED.name(), event.getMallId(), resourceId);
         log.info("Carrier updated: mallId={}, shippingCarrierCode={}", event.getMallId(), resourceId);
     }
 
@@ -185,7 +185,7 @@ public class WebhookEventService {
             return;
         }
 
-        carrierWebhookEventRepository.save(event.getEventNo(), "CARRIER_DELETED", event.getMallId(), resourceId);
+        carrierWebhookEventRepository.save(event.getEventNo(), WebhookEventType.CARRIER_DELETED.name(), event.getMallId(), resourceId);
         log.info("Carrier deleted: mallId={}, shippingCarrierCode={}", event.getMallId(), resourceId);
     }
 
@@ -205,7 +205,7 @@ public class WebhookEventService {
             return;
         }
 
-        benefitWebhookEventRepository.save(event.getEventNo(), "BENEFIT_CREATED", event.getMallId(), resourceId);
+        benefitWebhookEventRepository.save(event.getEventNo(), WebhookEventType.BENEFIT_CREATED.name(), event.getMallId(), resourceId);
 
         log.info("Benefit created: mallId={}, benefitNo={}", event.getMallId(), event.getBenefitNo());
         benefitService.upsertFromWebhook(event.getMallId(), event.getBenefitNo());
