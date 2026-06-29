@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 
-@Tag(name = "Admin", description = "운영용 Backfill · 지표 · Webhook 재처리 API — 인증 없음, 네트워크 레벨로 접근 제한 필요")
+@Tag(name = "Admin", description = "운영용 Backfill · 지표 · Webhook 재처리 API")
 @RestController
 @RequestMapping("/admin/backfill")
 @RequiredArgsConstructor

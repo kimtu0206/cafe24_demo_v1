@@ -3,6 +3,7 @@ package org.example.cafe24_demo_v1.authorization.infrastructure.external;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
+import lombok.ToString;
 
 /**
  * Cafe24 OAuth 토큰 API 응답을 역직렬화하는 DTO.
@@ -15,9 +16,11 @@ import lombok.Data;
 @JsonIgnoreProperties(ignoreUnknown = true)
 class Cafe24TokenResponse {
 
+    @ToString.Exclude
     @JsonProperty("access_token")
     private String accessToken;
 
+    @ToString.Exclude
     @JsonProperty("refresh_token")
     private String refreshToken;
 
