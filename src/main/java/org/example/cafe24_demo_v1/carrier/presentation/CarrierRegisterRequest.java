@@ -1,5 +1,7 @@
 package org.example.cafe24_demo_v1.carrier.presentation;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.math.BigDecimal;
 
 /**
@@ -8,11 +10,11 @@ import java.math.BigDecimal;
  * (Cafe24가 코드 기준으로 채워 응답한다).
  */
 public record CarrierRegisterRequest(
-        String shippingCarrierCode,
-        String contact,
-        String secondaryContact,
-        String email,
-        BigDecimal defaultShippingFee,
-        String homepageUrl,
-        String trackShipmentUrl
+        @Schema(example = "0001") String shippingCarrierCode,
+        @Schema(example = "02-1234-5678") String contact,
+        @Schema(example = "02-8765-4321") String secondaryContact,
+        @Schema(example = "support@carrier.co.kr") String email,
+        @Schema(example = "3000") BigDecimal defaultShippingFee,
+        @Schema(example = "https://www.carrier.co.kr") String homepageUrl,
+        @Schema(example = "https://www.carrier.co.kr/track?no={invoice_no}") String trackShipmentUrl
 ) {}

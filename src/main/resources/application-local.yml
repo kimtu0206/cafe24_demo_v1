@@ -3,3 +3,12 @@ spring:
     hibernate:
       ddl-auto: update # 엔티티 수정하면 DB 수정 안 해도 됨 (컬럼 추가만 하지 삭제는 안 함)
     show-sql: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    enabled: true
+  api-docs:
+    path: /v3/api-docs
+    enabled: true

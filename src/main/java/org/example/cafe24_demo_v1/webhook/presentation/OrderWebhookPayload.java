@@ -2,6 +2,7 @@ package org.example.cafe24_demo_v1.webhook.presentation;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
  * Cafe24 주문 생성 Webhook 요청 바디.
@@ -11,8 +12,8 @@ import com.fasterxml.jackson.databind.JsonNode;
  * JsonNode로 받아 라우팅에 필요한 mall_id/order_id만 꺼내 쓰고, 전체는 원본 그대로 보존한다.
  */
 record OrderWebhookPayload(
-        @JsonProperty("event_no") Integer eventNo,
-        JsonNode resource
+        @Schema(example = "1234") @JsonProperty("event_no") Integer eventNo,
+        @Schema(type = "object", example = "{\"mall_id\": \"testmall\", \"order_id\": \"20240115-0000011\", \"payment_gateway_name\": \"creditcard\", \"currency\": \"KRW\", \"initial_order_amount\": {\"order_price_amount\": \"89000.00\"}}") JsonNode resource
 ) {
 
     String mallId() {

@@ -1,6 +1,10 @@
 package org.example.cafe24_demo_v1.webhook.presentation;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.webhook.domain.event.OrderCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.infrastructure.Cafe24WebhookVerifier;
@@ -23,6 +27,8 @@ import java.util.Optional;
  * 원본 payload 저장만 위임하고 즉시 200을 반환해, 응답 시간이 Cafe24/DB 상태에 영향받지 않게 한다.
  * 실제 반영은 OrderWebhookEventProcessor가 비동기로 처리한다.
  */
+@Tag(name = "Webhook")
+@SecurityRequirement(name = "WebhookApiKey")
 @Slf4j
 @RestController
 @RequestMapping("/webhook/cafe24/orders")
@@ -35,8 +41,9 @@ public class OrderWebhookController extends AbstractCafe24WebhookController {
         this.eventPublisher = eventPublisher;
     }
 
+    @Operation(summary = "주문 생성 Webhook 수신", description = "Cafe24 주문 생성 이벤트를 수신하고 원본 payload만 저장합니다. 실제 주문 반영은 OrderWebhookEventProcessor가 비동기로 처리합니다.")
     @PostMapping("/created")
-    public ResponseEntity<Void> created(@RequestHeader Map<String, String> headers, @RequestBody OrderWebhookPayload payload) {
+    public ResponseEntity<Void> created(@Parameter(hidden = true) @RequestHeader Map<String, String> headers, @RequestBody OrderWebhookPayload payload) {
         JsonNode resource = payload.resource();
         Object resourceOrNull = (resource == null || resource.isNull()) ? null : resource;
 

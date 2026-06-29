@@ -1,5 +1,8 @@
 package org.example.cafe24_demo_v1.authorization.presentation;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +25,7 @@ import java.io.IOException;
  * HTTP 요청/응답 처리만 담당하고, 비즈니스 로직은 AppAuthorizationService에 위임한다.
  * HTTP 파라미터 → Command 객체 변환 → 서비스 호출의 단순한 흐름을 유지한다.
  */
+@Tag(name = "OAuth", description = "Cafe24 OAuth 2.0 인가 흐름 — 로그인·콜백·토큰 갱신")
 @Slf4j
 @RestController
 @RequiredArgsConstructor
@@ -37,6 +41,7 @@ public class OAuthController {
      * OAuth 로그인 시작 엔드포인트.
      * CSRF 방지용 state 값을 세션에 저장하고, Cafe24 인가 서버로 리다이렉트한다.
      */
+    @Operation(summary = "OAuth 로그인 시작", description = "CSRF 방지용 state를 세션에 저장하고 Cafe24 인가 서버로 리다이렉트합니다.")
     @GetMapping("/oauth/login")
     public void login(HttpServletResponse response, HttpSession session) throws IOException {
         String state = cafe24Properties.getState();
@@ -60,8 +65,12 @@ public class OAuthController {
      * Cafe24 인가 서버가 호출하는 OAuth 콜백 엔드포인트.
      * state 검증 후 인가 코드를 AppAuthorizationService에 전달해 토큰을 발급받고 저장한다.
      */
+    @Operation(summary = "OAuth 콜백", description = "Cafe24 인가 서버가 호출하는 콜백 엔드포인트. state 검증 후 인가 코드로 액세스 토큰을 발급받아 저장합니다.")
     @GetMapping("/oauth/callback")
-    public String callback(@RequestParam String code, @RequestParam String state, HttpSession session) {
+    public String callback(
+            @Parameter(description = "Cafe24가 전달하는 인가 코드") @RequestParam String code,
+            @Parameter(description = "CSRF 검증용 state 값") @RequestParam String state,
+            HttpSession session) {
         // CSRF 방지: 세션에 저장한 state와 콜백으로 받은 state가 일치하는지 검증
         String savedState = (String) session.getAttribute(SESSION_STATE_KEY);
         if (savedState == null || !savedState.equals(state)) {
@@ -77,6 +86,7 @@ public class OAuthController {
      * 액세스 토큰 수동 갱신 엔드포인트.
      * 저장된 리프레시 토큰으로 새 액세스 토큰을 재발급받는다.
      */
+    @Operation(summary = "액세스 토큰 수동 갱신", description = "저장된 리프레시 토큰으로 새 액세스 토큰을 재발급받습니다.")
     @PostMapping("/oauth/refresh")
     public String refresh() {
         authorizationService.refresh(new RefreshAuthorizationCommand(cafe24Properties.getMallId()));

@@ -1,5 +1,8 @@
 package org.example.cafe24_demo_v1.admin.presentation;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.example.cafe24_demo_v1.admin.application.BackfillService;
 import org.example.cafe24_demo_v1.carrier.application.service.CarrierService;
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 
+@Tag(name = "Admin", description = "운영용 Backfill · 지표 · Webhook 재처리 API — 인증 없음, 네트워크 레벨로 접근 제한 필요")
 @RestController
 @RequestMapping("/admin/backfill")
 @RequiredArgsConstructor
@@ -24,21 +28,24 @@ public class AdminBackfillController {
     private final BackfillService backfillService;
     private final Cafe24Properties cafe24Properties;
 
+    @Operation(summary = "주문 Backfill", description = "지정 기간의 주문을 Cafe24에서 재조회해 로컬 DB에 반영합니다. Cafe24 API 호출 실패 시 502를 반환합니다.")
     @PostMapping("/orders")
     public ResponseEntity<BackfillResponse> backfillOrders(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
+            @Parameter(description = "조회 시작일 (yyyy-MM-dd)") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @Parameter(description = "조회 종료일 (yyyy-MM-dd)") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
     ) {
         OrderService.SyncResult result = backfillService.backfillOrders(cafe24Properties.getMallId(), startDate, endDate);
         return toResponse("orders", result.processedCount(), result.failedCount(), result.apiFailureCount(), result.errorMessage());
     }
 
+    @Operation(summary = "상품 Backfill", description = "Cafe24에서 전체 상품을 재조회해 로컬 DB에 반영합니다. Cafe24 API 호출 실패 시 502를 반환합니다.")
     @PostMapping("/products")
     public ResponseEntity<BackfillResponse> backfillProducts() {
         ProductService.SyncResult result = backfillService.backfillProducts(cafe24Properties.getMallId());
         return toResponse("products", result.processedCount(), result.failedCount(), result.apiFailureCount(), result.errorMessage());
     }
 
+    @Operation(summary = "배송사 Backfill", description = "Cafe24에서 전체 배송사를 재조회해 로컬 DB에 반영합니다. Cafe24 API 호출 실패 시 502를 반환합니다.")
     @PostMapping("/carriers")
     public ResponseEntity<BackfillResponse> backfillCarriers() {
         CarrierService.SyncResult result = backfillService.backfillCarriers(cafe24Properties.getMallId());
