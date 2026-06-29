@@ -4,9 +4,12 @@ import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.servers.Server;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+
+import java.util.List;
 
 @Configuration
 @Profile("local")
@@ -18,6 +21,10 @@ public class SwaggerConfig {
     @Bean
     public OpenAPI openAPI() {
         return new OpenAPI()
+                .servers(List.of(
+                        new Server().url("https://nervy-founder-schematic.ngrok-free.dev").description("ngrok"),
+                        new Server().url("http://localhost:8080").description("local")
+                ))
                 .info(new Info()
                         .title("Cafe24 Demo API")
                         .description("Cafe24 OAuth 인가 · 주문/상품/배송사 동기화 · Webhook 수신 데모 서버")

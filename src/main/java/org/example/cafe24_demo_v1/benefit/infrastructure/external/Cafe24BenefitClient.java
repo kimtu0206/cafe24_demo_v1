@@ -2,7 +2,9 @@ package org.example.cafe24_demo_v1.benefit.infrastructure.external;
 
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
+import org.example.cafe24_demo_v1.benefit.application.command.CreateBenefitCommand;
 import org.example.cafe24_demo_v1.benefit.domain.model.Benefit;
+import org.example.cafe24_demo_v1.benefit.domain.model.PeriodSale;
 import org.example.cafe24_demo_v1.benefit.domain.service.Cafe24BenefitPort;
 import org.example.cafe24_demo_v1.shared.config.Cafe24Properties;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
@@ -57,7 +59,17 @@ public class Cafe24BenefitClient implements Cafe24BenefitPort {
             return Collections.emptyList();
         }
 
-        return benefits.stream().map(this::toDomain).toList();
+        return benefits.stream().map(p -> toDomain(mallId, p)).toList();
+    }
+
+    @Override
+    public Benefit createBenefit(String mallId, CreateBenefitCommand command, TokenCredential credential) {
+        String url = baseUrl(mallId) + "/benefits";
+        Cafe24CreateBenefitRequest requestBody = Cafe24CreateBenefitRequest.from(command);
+        HttpEntity<Cafe24CreateBenefitRequest> entity = new HttpEntity<>(requestBody, headers(credential));
+
+        Cafe24CreateBenefitResponse response = exchange(mallId, url, HttpMethod.POST, entity, Cafe24CreateBenefitResponse.class);
+        return toDomain(mallId, response.getBenefit());
     }
 
     private String baseUrl(String mallId) {
@@ -76,8 +88,7 @@ public class Cafe24BenefitClient implements Cafe24BenefitPort {
         try {
             return restTemplate.exchange(url, method, request, responseType).getBody();
         } catch (HttpStatusCodeException e) {
-            log.error("Cafe24 benefit API call failed: mallId={}, status={}", mallId, e.getStatusCode());
-            log.debug("Cafe24 benefit API error body: {}", e.getResponseBodyAsString());
+            log.error("Cafe24 benefit API call failed: mallId={}, status={}, body={}", mallId, e.getStatusCode(), e.getResponseBodyAsString());
             throw new Cafe24ApiException(
                     "Cafe24 benefit API call failed. status=" + e.getStatusCode(),
                     e.getStatusCode(),
@@ -87,8 +98,9 @@ public class Cafe24BenefitClient implements Cafe24BenefitPort {
         }
     }
 
-    private Benefit toDomain(Cafe24BenefitPayload payload) {
-        return new Benefit(
+    private Benefit toDomain(String mallId, Cafe24BenefitPayload payload) {
+        return Benefit.register(
+                mallId,
                 payload.getShopNo(),
                 payload.getBenefitNo(),
                 payload.getUseBenefit(),
@@ -107,7 +119,23 @@ public class Cafe24BenefitClient implements Cafe24BenefitPort {
                 payload.getAvailableCoupon(),
                 payload.getRepurchaseSale(),
                 payload.getBulkPurchaseSale(),
-                payload.getMemberSale()
+                payload.getMemberSale(),
+                payload.getCreatedDate() != null ? payload.getCreatedDate().toLocalDateTime() : null,
+                toPeriodSale(payload.getPeriodSale())
+        );
+    }
+
+    private PeriodSale toPeriodSale(Cafe24BenefitPayload.PeriodSalePayload payload) {
+        if (payload == null) return null;
+        return new PeriodSale(
+                payload.getProductList(),
+                payload.getAddCategoryList(),
+                payload.getExceptCategoryList(),
+                payload.getDiscountPurchasingQuantity(),
+                payload.getDiscountValue(),
+                payload.getDiscountValueUnit(),
+                payload.getDiscountTruncationUnit(),
+                payload.getDiscountTruncationMethod()
         );
     }
 }

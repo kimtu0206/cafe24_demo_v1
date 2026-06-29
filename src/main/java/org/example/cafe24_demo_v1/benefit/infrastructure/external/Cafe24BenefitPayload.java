@@ -67,4 +67,38 @@ class Cafe24BenefitPayload {
 
     @JsonProperty("member_sale")
     private String memberSale;
+
+    @JsonProperty("created_date")
+    private OffsetDateTime createdDate;
+
+    @JsonProperty("period_sale")
+    private PeriodSalePayload periodSale;
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    static class PeriodSalePayload {
+        @JsonProperty("product_list")
+        private List<Integer> productList;
+
+        @JsonProperty("add_category_list")
+        private List<Integer> addCategoryList;
+
+        @JsonProperty("except_category_list")
+        private List<Integer> exceptCategoryList;
+
+        @JsonProperty("discount_purchasing_quantity")
+        private Integer discountPurchasingQuantity;
+
+        @JsonProperty("discount_value")
+        private String discountValue;
+
+        @JsonProperty("discount_value_unit")
+        private String discountValueUnit;
+
+        @JsonProperty("discount_truncation_unit")
+        private String discountTruncationUnit;
+
+        @JsonProperty("discount_truncation_method")
+        private String discountTruncationMethod;
+    }
 }

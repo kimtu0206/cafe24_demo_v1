@@ -1,6 +1,7 @@
 package org.example.cafe24_demo_v1.benefit.infrastructure.external;
 
 import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
+import org.example.cafe24_demo_v1.benefit.application.command.CreateBenefitCommand;
 import org.example.cafe24_demo_v1.benefit.domain.model.Benefit;
 import org.example.cafe24_demo_v1.shared.config.Cafe24Properties;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
@@ -62,6 +63,7 @@ class Cafe24BenefitClientTest {
 
         assertThat(benefits).hasSize(1);
         assertThat(benefits.get(0).getBenefitNo()).isEqualTo(3);
+        assertThat(benefits.get(0).getMallId()).isEqualTo("mymall");
         mockServer.verify();
     }
 
@@ -118,10 +120,7 @@ class Cafe24BenefitClientTest {
                             "product_binding_type": "A",
                             "use_except_category": "T",
                             "icon_url": "https://example.com/icon.gif",
-                            "available_coupon": "T",
-                            "repurchase_sale": null,
-                            "bulk_purchase_sale": null,
-                            "member_sale": null
+                            "available_coupon": "T"
                         }]}
                         """, MediaType.APPLICATION_JSON));
 
@@ -129,21 +128,16 @@ class Cafe24BenefitClientTest {
 
         assertThat(benefits).hasSize(1);
         Benefit benefit = benefits.get(0);
+        assertThat(benefit.getMallId()).isEqualTo("mymall");
         assertThat(benefit.getShopNo()).isEqualTo(1);
         assertThat(benefit.getBenefitNo()).isEqualTo(3);
         assertThat(benefit.getUseBenefit()).isEqualTo("T");
         assertThat(benefit.getBenefitName()).isEqualTo("Group Sale");
-        assertThat(benefit.getBenefitDivision()).isEqualTo("P");
-        assertThat(benefit.getBenefitType()).isEqualTo("PG");
-        assertThat(benefit.getUseBenefitPeriod()).isEqualTo("T");
         assertThat(benefit.getBenefitStartDate()).isNotNull();
         assertThat(benefit.getBenefitEndDate()).isNotNull();
         assertThat(benefit.getPlatformTypes()).containsExactly("P", "M");
         assertThat(benefit.getCustomerGroupList()).containsExactly(1, 8, 9);
-        assertThat(benefit.getProductBindingType()).isEqualTo("A");
-        assertThat(benefit.getUseExceptCategory()).isEqualTo("T");
         assertThat(benefit.getIconUrl()).isEqualTo("https://example.com/icon.gif");
-        assertThat(benefit.getAvailableCoupon()).isEqualTo("T");
     }
 
     @Test
@@ -180,6 +174,93 @@ class Cafe24BenefitClientTest {
                 .andRespond(withStatus(HttpStatus.UNAUTHORIZED).body("{\"error\": \"invalid token\"}"));
 
         assertThatThrownBy(() -> client.listBenefits("mymall", null, null, null, credential))
+                .isInstanceOf(Cafe24ApiException.class);
+    }
+
+    @Test
+    void createBenefit은_POST로_올바른_URL과_헤더로_요청한다() {
+        mockServer.expect(requestTo("https://mymall.cafe24api.com/api/v2/admin/benefits"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Authorization", "Bearer access-token"))
+                .andExpect(header("X-Cafe24-Api-Version", "2024-06-01"))
+                .andRespond(withSuccess("""
+                        {"benefit": {
+                            "shop_no": 1,
+                            "benefit_no": 3,
+                            "use_benefit": "T",
+                            "benefit_name": "Sample Benefit",
+                            "benefit_division": "D",
+                            "benefit_type": "DP",
+                            "created_date": "2019-01-01T12:00:00+09:00"
+                        }}
+                        """, MediaType.APPLICATION_JSON));
+
+        CreateBenefitCommand command = new CreateBenefitCommand(
+                "mymall", 1, "T", "Sample Benefit", "D", "DP", "T",
+                "2019-01-01T12:00:00+09:00", "2019-01-31T12:00:00+09:00",
+                List.of("P", "M"), "M", List.of(8, 9), "P", "T", "T", null, null
+        );
+
+        Benefit benefit = client.createBenefit("mymall", command, credential);
+
+        assertThat(benefit.getMallId()).isEqualTo("mymall");
+        assertThat(benefit.getBenefitNo()).isEqualTo(3);
+        assertThat(benefit.getBenefitName()).isEqualTo("Sample Benefit");
+        assertThat(benefit.getCreatedDate()).isNotNull();
+        mockServer.verify();
+    }
+
+    @Test
+    void createBenefit은_period_sale_포함_응답을_올바르게_변환한다() {
+        mockServer.expect(requestTo(containsString("/benefits")))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("""
+                        {"benefit": {
+                            "shop_no": 1,
+                            "benefit_no": 5,
+                            "benefit_name": "Period Discount",
+                            "period_sale": {
+                                "product_list": [17, 25, 29],
+                                "add_category_list": null,
+                                "except_category_list": [168, 175],
+                                "discount_purchasing_quantity": null,
+                                "discount_value": "10.00",
+                                "discount_value_unit": "P",
+                                "discount_truncation_unit": "O",
+                                "discount_truncation_method": "U"
+                            }
+                        }}
+                        """, MediaType.APPLICATION_JSON));
+
+        CreateBenefitCommand.PeriodSaleCommand ps = new CreateBenefitCommand.PeriodSaleCommand(
+                List.of(17, 25, 29), List.of(168, 175), "10.00", "P", "O", "U"
+        );
+        CreateBenefitCommand command = new CreateBenefitCommand(
+                "mymall", 1, "T", "Period Discount", "D", "DP", "T",
+                null, null, List.of(), "N", List.of(), "A", "T", "T", null, ps
+        );
+
+        Benefit benefit = client.createBenefit("mymall", command, credential);
+
+        assertThat(benefit.getBenefitNo()).isEqualTo(5);
+        assertThat(benefit.getPeriodSale()).isNotNull();
+        assertThat(benefit.getPeriodSale().productList()).containsExactly(17, 25, 29);
+        assertThat(benefit.getPeriodSale().discountValue()).isEqualTo("10.00");
+        mockServer.verify();
+    }
+
+    @Test
+    void createBenefit_Cafe24_오류는_Cafe24ApiException을_던진다() {
+        mockServer.expect(requestTo(containsString("/benefits")))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST).body("{\"error\": \"invalid param\"}"));
+
+        CreateBenefitCommand command = new CreateBenefitCommand(
+                "mymall", 1, "T", "Bad", "D", "DP", "F",
+                null, null, List.of(), "N", List.of(), "A", "F", "F", null, null
+        );
+
+        assertThatThrownBy(() -> client.createBenefit("mymall", command, credential))
                 .isInstanceOf(Cafe24ApiException.class);
     }
 }

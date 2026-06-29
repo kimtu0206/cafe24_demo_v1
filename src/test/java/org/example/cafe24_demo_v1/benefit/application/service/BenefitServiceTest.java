@@ -2,7 +2,9 @@ package org.example.cafe24_demo_v1.benefit.application.service;
 
 import org.example.cafe24_demo_v1.authorization.application.service.AppAuthorizationService;
 import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
+import org.example.cafe24_demo_v1.benefit.application.command.CreateBenefitCommand;
 import org.example.cafe24_demo_v1.benefit.domain.model.Benefit;
+import org.example.cafe24_demo_v1.benefit.domain.repository.BenefitRepository;
 import org.example.cafe24_demo_v1.benefit.domain.service.Cafe24BenefitPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,11 +21,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class BenefitServiceTest {
 
     @Mock private Cafe24BenefitPort cafe24BenefitPort;
+    @Mock private BenefitRepository benefitRepository;
     @Mock private AppAuthorizationService authorizationService;
 
     private BenefitService benefitService;
@@ -35,51 +39,80 @@ class BenefitServiceTest {
 
     @BeforeEach
     void setUp() {
-        benefitService = new BenefitService(cafe24BenefitPort, authorizationService);
+        benefitService = new BenefitService(cafe24BenefitPort, benefitRepository, authorizationService);
+    }
+
+    private Benefit sampleBenefit() {
+        return Benefit.register("mymall", 1, 3, "T", "Group Sale", "P", "PG", "T",
+                null, null, List.of("P", "M"), "M", List.of(1, 8, 9),
+                "A", "T", null, "T", null, null, null, null, null);
     }
 
     @Test
-    void 파라미터_없이_조회하면_port의_listBenefits에_위임한다() {
-        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
-        Benefit benefit = new Benefit(1, 3, "T", "Group Sale", "P", "PG", "T", null, null, List.of("P", "M"), "M", List.of(1, 8, 9), "A", "T", null, "T", null, null, null);
-        given(cafe24BenefitPort.listBenefits("mymall", null, null, null, credential)).willReturn(List.of(benefit));
+    void list는_로컬DB에서_조회하며_Cafe24를_호출하지_않는다() {
+        given(benefitRepository.findByMallId("mymall", null, null, null)).willReturn(List.of(sampleBenefit()));
 
         List<Benefit> result = benefitService.list("mymall", null, null, null);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getBenefitName()).isEqualTo("Group Sale");
+        verify(benefitRepository).findByMallId("mymall", null, null, null);
+        verifyNoInteractions(cafe24BenefitPort);
+        verifyNoInteractions(authorizationService);
     }
 
     @Test
-    void useBenefit_T로_조회하면_port에_그대로_전달된다() {
-        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
-        given(cafe24BenefitPort.listBenefits("mymall", "T", null, null, credential)).willReturn(List.of());
-
-        List<Benefit> result = benefitService.list("mymall", "T", null, null);
-
-        assertThat(result).isEmpty();
-        verify(cafe24BenefitPort).listBenefits("mymall", "T", null, null, credential);
-    }
-
-    @Test
-    void 기간_파라미터도_port에_그대로_전달된다() {
-        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
-        given(cafe24BenefitPort.listBenefits("mymall", null, "2024-01-01", "2024-12-31", credential)).willReturn(List.of());
-
-        benefitService.list("mymall", null, "2024-01-01", "2024-12-31");
-
-        verify(cafe24BenefitPort).listBenefits("mymall", null, "2024-01-01", "2024-12-31", credential);
-    }
-
-    @Test
-    void getValidCredential을_먼저_호출하고_port에_위임한다() {
-        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
-        given(cafe24BenefitPort.listBenefits(any(), any(), any(), any(), any())).willReturn(List.of());
+    void list는_useBenefit_파라미터를_repository에_그대로_전달한다() {
+        given(benefitRepository.findByMallId("mymall", "T", null, null)).willReturn(List.of());
 
         benefitService.list("mymall", "T", null, null);
 
-        InOrder inOrder = Mockito.inOrder(authorizationService, cafe24BenefitPort);
+        verify(benefitRepository).findByMallId("mymall", "T", null, null);
+    }
+
+    @Test
+    void list는_기간_파라미터를_repository에_그대로_전달한다() {
+        given(benefitRepository.findByMallId("mymall", null, "2024-01-01", "2024-12-31")).willReturn(List.of());
+
+        benefitService.list("mymall", null, "2024-01-01", "2024-12-31");
+
+        verify(benefitRepository).findByMallId("mymall", null, "2024-01-01", "2024-12-31");
+    }
+
+    @Test
+    void create는_getValidCredential_후_Cafe24_API_호출_후_DB에_저장한다() {
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        Benefit created = sampleBenefit();
+        given(cafe24BenefitPort.createBenefit(any(), any(), any())).willReturn(created);
+
+        CreateBenefitCommand command = new CreateBenefitCommand(
+                "mymall", 1, "T", "Sample Benefit", "D", "DP", "T",
+                "2019-01-01T12:00:00+09:00", "2019-01-31T12:00:00+09:00",
+                List.of("P", "M"), "M", List.of(8, 9), "P", "T", "T", null, null
+        );
+
+        Benefit result = benefitService.create(command);
+
+        assertThat(result.getBenefitNo()).isEqualTo(3);
+        InOrder inOrder = Mockito.inOrder(authorizationService, cafe24BenefitPort, benefitRepository);
         inOrder.verify(authorizationService).getValidCredential("mymall");
-        inOrder.verify(cafe24BenefitPort).listBenefits(any(), any(), any(), any(), any());
+        inOrder.verify(cafe24BenefitPort).createBenefit("mymall", command, credential);
+        inOrder.verify(benefitRepository).save(created);
+    }
+
+    @Test
+    void create는_Cafe24_API가_반환한_Benefit을_그대로_반환한다() {
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        Benefit expected = sampleBenefit();
+        given(cafe24BenefitPort.createBenefit(any(), any(), any())).willReturn(expected);
+
+        CreateBenefitCommand command = new CreateBenefitCommand(
+                "mymall", 1, "T", "Group Sale", "D", "DP", "F",
+                null, null, List.of(), "N", List.of(), "A", "F", "F", null, null
+        );
+
+        Benefit result = benefitService.create(command);
+
+        assertThat(result).isSameAs(expected);
     }
 }

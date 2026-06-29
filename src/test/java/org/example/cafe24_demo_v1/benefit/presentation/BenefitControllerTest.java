@@ -1,13 +1,16 @@
 package org.example.cafe24_demo_v1.benefit.presentation;
 
+import org.example.cafe24_demo_v1.benefit.application.command.CreateBenefitCommand;
 import org.example.cafe24_demo_v1.benefit.application.service.BenefitService;
 import org.example.cafe24_demo_v1.benefit.domain.model.Benefit;
+import org.example.cafe24_demo_v1.benefit.domain.model.PeriodSale;
 import org.example.cafe24_demo_v1.shared.config.Cafe24Properties;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -16,6 +19,7 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -26,11 +30,16 @@ class BenefitControllerTest {
     @MockitoBean private BenefitService benefitService;
     @MockitoBean private Cafe24Properties cafe24Properties;
 
+    private Benefit sampleBenefit() {
+        return Benefit.register("mymall", 1, 3, "T", "Group Sale", "P", "PG", "T",
+                null, null, List.of("P", "M"), "M", List.of(1, 8, 9),
+                "A", "T", null, "T", null, null, null, null, null);
+    }
+
     @Test
     void 파라미터_없이_전체_혜택을_조회한다() throws Exception {
         given(cafe24Properties.getMallId()).willReturn("mymall");
-        Benefit benefit = new Benefit(1, 3, "T", "Group Sale", "P", "PG", "T", null, null, List.of("P", "M"), "M", List.of(1, 8, 9), "A", "T", null, "T", null, null, null);
-        given(benefitService.list("mymall", null, null, null)).willReturn(List.of(benefit));
+        given(benefitService.list("mymall", null, null, null)).willReturn(List.of(sampleBenefit()));
 
         mockMvc.perform(get("/benefits"))
                 .andExpect(status().isOk())
@@ -42,7 +51,9 @@ class BenefitControllerTest {
     @Test
     void useBenefit_T로_진행중_혜택만_조회한다() throws Exception {
         given(cafe24Properties.getMallId()).willReturn("mymall");
-        Benefit benefit = new Benefit(1, 3, "T", "Group Sale", "P", "PG", "T", null, null, List.of(), "N", List.of(), "A", "T", null, "T", null, null, null);
+        Benefit benefit = Benefit.register("mymall", 1, 3, "T", "Group Sale", "P", "PG", "T",
+                null, null, List.of(), "N", List.of(), "A", "T", null, "T",
+                null, null, null, null, null);
         given(benefitService.list("mymall", "T", null, null)).willReturn(List.of(benefit));
 
         mockMvc.perform(get("/benefits").param("useBenefit", "T"))
@@ -82,6 +93,69 @@ class BenefitControllerTest {
                 .willThrow(new Cafe24ApiException("failed", HttpStatus.INTERNAL_SERVER_ERROR, "{}", null));
 
         mockMvc.perform(get("/benefits"))
+                .andExpect(status().isBadGateway());
+    }
+
+    @Test
+    void 혜택_생성_요청이_성공하면_201과_생성된_혜택을_반환한다() throws Exception {
+        given(cafe24Properties.getMallId()).willReturn("mymall");
+        PeriodSale periodSale = new PeriodSale(List.of(17, 25), null, List.of(168), null, "10.00", "P", "O", "U");
+        Benefit created = Benefit.register("mymall", 1, 3, "T", "Sample Benefit", "D", "DP", "T",
+                null, null, List.of("P", "M"), "M", List.of(8, 9),
+                "P", "T", "https://example.com/icon.png", "T", null, null, null, null, periodSale);
+        given(benefitService.create(any(CreateBenefitCommand.class))).willReturn(created);
+
+        mockMvc.perform(post("/benefits")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "shopNo": 1,
+                                  "useBenefit": "T",
+                                  "benefitName": "Sample Benefit",
+                                  "benefitDivision": "D",
+                                  "benefitType": "DP",
+                                  "useBenefitPeriod": "T",
+                                  "benefitStartDate": "2019-01-01T12:00:00+09:00",
+                                  "benefitEndDate": "2019-01-31T12:00:00+09:00",
+                                  "platformTypes": ["P", "M"],
+                                  "useGroupBinding": "M",
+                                  "customerGroupList": [8, 9],
+                                  "productBindingType": "P",
+                                  "useExceptCategory": "T",
+                                  "availableCoupon": "T",
+                                  "periodSale": {
+                                    "productList": [17, 25],
+                                    "exceptCategoryList": [168],
+                                    "discountValue": "10.00",
+                                    "discountValueUnit": "P",
+                                    "discountTruncationUnit": "O",
+                                    "discountTruncationMethod": "U"
+                                  }
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.benefit.benefitNo").value(3))
+                .andExpect(jsonPath("$.benefit.benefitName").value("Sample Benefit"))
+                .andExpect(jsonPath("$.benefit.periodSale.discountValue").value("10.00"));
+    }
+
+    @Test
+    void 혜택_생성_중_Cafe24_오류는_502로_변환한다() throws Exception {
+        given(cafe24Properties.getMallId()).willReturn("mymall");
+        given(benefitService.create(any(CreateBenefitCommand.class)))
+                .willThrow(new Cafe24ApiException("failed", HttpStatus.BAD_REQUEST, "{}", null));
+
+        mockMvc.perform(post("/benefits")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "shopNo": 1,
+                                  "useBenefit": "T",
+                                  "benefitName": "Test",
+                                  "benefitDivision": "D",
+                                  "benefitType": "DP"
+                                }
+                                """))
                 .andExpect(status().isBadGateway());
     }
 }
