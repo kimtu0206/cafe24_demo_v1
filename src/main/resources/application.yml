@@ -4,7 +4,7 @@ cafe24:
   mall-id: ${CAFE24_MALL_ID}
   redirect-uri: ${CAFE24_REDIRECT_URI}
   scope: >-
-    mall.read_application,mall.write_application,mall.read_category,mall.read_product,mall.write_product,mall.read_collection,mall.read_supply,mall.read_order,mall.read_customer,mall.read_promotion,mall.read_shipping,mall.write_shipping
+    mall.read_application,mall.write_application,mall.read_category,mall.read_product,mall.write_product,mall.read_collection,mall.read_supply,mall.read_order,mall.read_customer,mall.read_promotion,mall.read_shipping,mall.write_shipping,mall.write_customer,mall.read_personal
   state: cafe24-demo-state
   api-version: ${CAFE24_API_VERSION}
   webhook:
