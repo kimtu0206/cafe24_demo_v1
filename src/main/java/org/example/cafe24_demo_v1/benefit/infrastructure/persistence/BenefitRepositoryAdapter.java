@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
@@ -23,6 +24,11 @@ public class BenefitRepositoryAdapter implements BenefitRepository {
         BenefitEntity entity = mapper.toEntity(benefit);
         BenefitEntity saved = jpaRepository.save(entity);
         benefit.setId(saved.getId());
+    }
+
+    @Override
+    public Optional<Benefit> findByMallIdAndBenefitNo(String mallId, Integer benefitNo) {
+        return jpaRepository.findByMallIdAndBenefitNo(mallId, benefitNo).map(mapper::toDomain);
     }
 
     @Override

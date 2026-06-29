@@ -1,6 +1,6 @@
 package org.example.cafe24_demo_v1.webhook.presentation;
 
-import org.example.cafe24_demo_v1.webhook.domain.event.ProductCreatedEvent;
+import org.example.cafe24_demo_v1.webhook.domain.event.BenefitCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.infrastructure.Cafe24WebhookVerifier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,23 +21,23 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-class ProductWebhookControllerTest {
+class BenefitWebhookControllerTest {
 
     @Mock private Cafe24WebhookVerifier verifier;
     @Mock private ApplicationEventPublisher eventPublisher;
 
-    private ProductWebhookController controller;
+    private BenefitWebhookController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new ProductWebhookController(verifier, eventPublisher);
+        controller = new BenefitWebhookController(verifier, eventPublisher);
         given(verifier.verify("valid-key")).willReturn(true);
     }
 
     @Test
-    void productNo가_없으면_400을_반환하고_이벤트를_발행하지_않는다() {
+    void benefitNo가_없으면_400을_반환하고_이벤트를_발행하지_않는다() {
         Cafe24WebhookPayload payload = new Cafe24WebhookPayload(
-                90071, new Cafe24WebhookPayload.Resource("mymall", null, null, null, null, null, null)
+                90091, new Cafe24WebhookPayload.Resource("mymall", null, null, null, null, null, null)
         );
 
         ResponseEntity<Void> response = controller.created(headers(), payload);
@@ -47,19 +47,19 @@ class ProductWebhookControllerTest {
     }
 
     @Test
-    void productNo가_있으면_정상적으로_이벤트를_발행한다() {
+    void benefitNo가_있으면_정상적으로_이벤트를_발행한다() {
         Cafe24WebhookPayload payload = new Cafe24WebhookPayload(
-                90071, new Cafe24WebhookPayload.Resource("mymall", null, null, null, 1L, null, null)
+                90091, new Cafe24WebhookPayload.Resource("mymall", null, null, null, null, null, 1000)
         );
 
         ResponseEntity<Void> response = controller.created(headers(), payload);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        ArgumentCaptor<ProductCreatedEvent> captor = ArgumentCaptor.forClass(ProductCreatedEvent.class);
+        ArgumentCaptor<BenefitCreatedEvent> captor = ArgumentCaptor.forClass(BenefitCreatedEvent.class);
         verify(eventPublisher).publishEvent(captor.capture());
-        assertThat(captor.getValue().getEventNo()).isEqualTo(90071);
+        assertThat(captor.getValue().getEventNo()).isEqualTo(90091);
         assertThat(captor.getValue().getMallId()).isEqualTo("mymall");
-        assertThat(captor.getValue().getProductNo()).isEqualTo(1L);
+        assertThat(captor.getValue().getBenefitNo()).isEqualTo(1000);
     }
 
     private Map<String, String> headers() {

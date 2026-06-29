@@ -72,6 +72,15 @@ public class Cafe24BenefitClient implements Cafe24BenefitPort {
         return toDomain(mallId, response.getBenefit());
     }
 
+    @Override
+    public Benefit getBenefit(String mallId, Integer benefitNo, TokenCredential credential) {
+        String url = baseUrl(mallId) + "/benefits/" + benefitNo;
+        Cafe24CreateBenefitResponse response = exchange(
+                mallId, url, HttpMethod.GET, new HttpEntity<>(headers(credential)), Cafe24CreateBenefitResponse.class
+        );
+        return toDomain(mallId, response.getBenefit());
+    }
+
     private String baseUrl(String mallId) {
         return "https://" + mallId + ".cafe24api.com/api/v2/admin";
     }

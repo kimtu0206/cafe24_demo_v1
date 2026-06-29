@@ -4,10 +4,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.authorization.application.command.RevokeAuthorizationCommand;
 import org.example.cafe24_demo_v1.authorization.application.service.AppAuthorizationService;
+import org.example.cafe24_demo_v1.benefit.application.service.BenefitService;
+import org.example.cafe24_demo_v1.benefit.domain.repository.BenefitWebhookEventRepository;
 import org.example.cafe24_demo_v1.carrier.domain.repository.CarrierWebhookEventRepository;
 import org.example.cafe24_demo_v1.order.application.service.OrderWebhookEventService;
 import org.example.cafe24_demo_v1.product.application.service.ProductService;
 import org.example.cafe24_demo_v1.webhook.domain.event.AppUninstalledEvent;
+import org.example.cafe24_demo_v1.webhook.domain.event.BenefitCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.CarrierCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.CarrierDeletedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.CarrierUpdatedEvent;
@@ -35,9 +38,11 @@ public class WebhookEventService {
 
     private final AppAuthorizationService authorizationService;
     private final ProductService productService;
+    private final BenefitService benefitService;
     private final OrderWebhookEventService orderWebhookEventService;
     private final WebhookEventRepository webhookEventRepository;
     private final CarrierWebhookEventRepository carrierWebhookEventRepository;
+    private final BenefitWebhookEventRepository benefitWebhookEventRepository;
 
     /**
      * 앱 삭제 이벤트 처리기.
@@ -182,6 +187,28 @@ public class WebhookEventService {
 
         carrierWebhookEventRepository.save(event.getEventNo(), "CARRIER_DELETED", event.getMallId(), resourceId);
         log.info("Carrier deleted: mallId={}, shippingCarrierCode={}", event.getMallId(), resourceId);
+    }
+
+    /**
+     * 혜택 등록 이벤트 처리기.
+     * eventNo + mallId + benefitNo 조합으로 중복 수신을 확인한 뒤,
+     * 최초 수신 시에만 Cafe24에서 혜택 상세를 다시 조회해 로컬 DB에 반영한다.
+     */
+    @Transactional
+    @EventListener
+    public void onBenefitCreated(BenefitCreatedEvent event) {
+        String resourceId = String.valueOf(event.getBenefitNo());
+
+        if (benefitWebhookEventRepository.exists(event.getEventNo(), event.getMallId(), resourceId)) {
+            log.info("Duplicate webhook ignored: eventNo={}, mallId={}, benefitNo={}",
+                    event.getEventNo(), event.getMallId(), event.getBenefitNo());
+            return;
+        }
+
+        benefitWebhookEventRepository.save(event.getEventNo(), "BENEFIT_CREATED", event.getMallId(), resourceId);
+
+        log.info("Benefit created: mallId={}, benefitNo={}", event.getMallId(), event.getBenefitNo());
+        benefitService.upsertFromWebhook(event.getMallId(), event.getBenefitNo());
     }
 
     /**

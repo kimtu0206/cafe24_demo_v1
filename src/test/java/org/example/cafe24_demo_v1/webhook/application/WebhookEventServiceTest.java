@@ -1,10 +1,13 @@
 package org.example.cafe24_demo_v1.webhook.application;
 
 import org.example.cafe24_demo_v1.authorization.application.service.AppAuthorizationService;
+import org.example.cafe24_demo_v1.benefit.application.service.BenefitService;
+import org.example.cafe24_demo_v1.benefit.domain.repository.BenefitWebhookEventRepository;
 import org.example.cafe24_demo_v1.carrier.domain.repository.CarrierWebhookEventRepository;
 import org.example.cafe24_demo_v1.order.application.service.OrderWebhookEventService;
 import org.example.cafe24_demo_v1.product.application.service.ProductService;
 import org.example.cafe24_demo_v1.webhook.domain.event.AppUninstalledEvent;
+import org.example.cafe24_demo_v1.webhook.domain.event.BenefitCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.CarrierCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.CarrierDeletedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.CarrierUpdatedEvent;
@@ -30,17 +33,19 @@ class WebhookEventServiceTest {
 
     @Mock private AppAuthorizationService authorizationService;
     @Mock private ProductService productService;
+    @Mock private BenefitService benefitService;
     @Mock private OrderWebhookEventService orderWebhookEventService;
     @Mock private WebhookEventRepository webhookEventRepository;
     @Mock private CarrierWebhookEventRepository carrierWebhookEventRepository;
+    @Mock private BenefitWebhookEventRepository benefitWebhookEventRepository;
 
     private WebhookEventService webhookEventService;
 
     @BeforeEach
     void setUp() {
         webhookEventService = new WebhookEventService(
-                authorizationService, productService, orderWebhookEventService,
-                webhookEventRepository, carrierWebhookEventRepository
+                authorizationService, productService, benefitService, orderWebhookEventService,
+                webhookEventRepository, carrierWebhookEventRepository, benefitWebhookEventRepository
         );
     }
 
@@ -178,5 +183,24 @@ class WebhookEventServiceTest {
         webhookEventService.onOrderCreated(new OrderCreatedEvent(90023, "mymall", "1", "{}"));
 
         verify(orderWebhookEventService).saveRaw("mymall", 90023, "1", "{}");
+    }
+
+    @Test
+    void 혜택_등록_이벤트는_혜택_전용_이력_테이블에_저장하고_Cafe24에서_상세를_재조회한다() {
+        given(benefitWebhookEventRepository.exists(90091, "mymall", "1000")).willReturn(false);
+
+        webhookEventService.onBenefitCreated(new BenefitCreatedEvent(90091, "mymall", 1000));
+
+        verify(benefitWebhookEventRepository).save(90091, "BENEFIT_CREATED", "mymall", "1000");
+        verify(benefitService).upsertFromWebhook("mymall", 1000);
+    }
+
+    @Test
+    void 이미_처리한_혜택_등록_이벤트는_무시한다() {
+        given(benefitWebhookEventRepository.exists(90091, "mymall", "1000")).willReturn(true);
+
+        webhookEventService.onBenefitCreated(new BenefitCreatedEvent(90091, "mymall", 1000));
+
+        verify(benefitService, never()).upsertFromWebhook(ArgumentMatchers.any(), ArgumentMatchers.any());
     }
 }

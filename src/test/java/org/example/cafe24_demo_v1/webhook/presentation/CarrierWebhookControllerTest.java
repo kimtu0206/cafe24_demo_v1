@@ -39,7 +39,7 @@ class CarrierWebhookControllerTest {
     @Test
     void shippingCarrierCode가_없으면_400을_반환하고_이벤트를_발행하지_않는다() {
         Cafe24WebhookPayload payload = new Cafe24WebhookPayload(
-                90081, new Cafe24WebhookPayload.Resource("mymall", null, null, null, null, null)
+                90081, new Cafe24WebhookPayload.Resource("mymall", null, null, null, null, null, null)
         );
 
         ResponseEntity<Void> response = controller.created(headers(), payload);
@@ -51,7 +51,7 @@ class CarrierWebhookControllerTest {
     @Test
     void shippingCarrierCode가_있으면_정상적으로_이벤트를_발행한다() {
         Cafe24WebhookPayload payload = new Cafe24WebhookPayload(
-                90081, new Cafe24WebhookPayload.Resource("mymall", null, null, null, null, "01")
+                90081, new Cafe24WebhookPayload.Resource("mymall", null, null, null, null, "01", null)
         );
 
         ResponseEntity<Void> response = controller.created(headers(), payload);
@@ -67,7 +67,7 @@ class CarrierWebhookControllerTest {
     @Test
     void 수정_Webhook은_shippingCarrierCode가_없으면_400을_반환하고_이벤트를_발행하지_않는다() {
         Cafe24WebhookPayload payload = new Cafe24WebhookPayload(
-                90082, new Cafe24WebhookPayload.Resource("mymall", null, null, null, null, null)
+                90082, new Cafe24WebhookPayload.Resource("mymall", null, null, null, null, null, null)
         );
 
         ResponseEntity<Void> response = controller.updated(headers(), payload);
@@ -79,7 +79,7 @@ class CarrierWebhookControllerTest {
     @Test
     void 수정_Webhook은_shippingCarrierCode가_있으면_정상적으로_이벤트를_발행한다() {
         Cafe24WebhookPayload payload = new Cafe24WebhookPayload(
-                90082, new Cafe24WebhookPayload.Resource("mymall", null, null, null, null, "01")
+                90082, new Cafe24WebhookPayload.Resource("mymall", null, null, null, null, "01", null)
         );
 
         ResponseEntity<Void> response = controller.updated(headers(), payload);
@@ -95,7 +95,7 @@ class CarrierWebhookControllerTest {
     @Test
     void 삭제_Webhook은_shippingCarrierCode가_없으면_400을_반환하고_이벤트를_발행하지_않는다() {
         Cafe24WebhookPayload payload = new Cafe24WebhookPayload(
-                90083, new Cafe24WebhookPayload.Resource("mymall", null, null, null, null, null)
+                90083, new Cafe24WebhookPayload.Resource("mymall", null, null, null, null, null, null)
         );
 
         ResponseEntity<Void> response = controller.deleted(headers(), payload);
@@ -107,7 +107,7 @@ class CarrierWebhookControllerTest {
     @Test
     void 삭제_Webhook은_shippingCarrierCode가_있으면_정상적으로_이벤트를_발행한다() {
         Cafe24WebhookPayload payload = new Cafe24WebhookPayload(
-                90083, new Cafe24WebhookPayload.Resource("mymall", null, null, null, null, "01")
+                90083, new Cafe24WebhookPayload.Resource("mymall", null, null, null, null, "01", null)
         );
 
         ResponseEntity<Void> response = controller.deleted(headers(), payload);

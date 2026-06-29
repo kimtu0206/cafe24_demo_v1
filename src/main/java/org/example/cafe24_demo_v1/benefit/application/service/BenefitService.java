@@ -31,4 +31,18 @@ public class BenefitService {
         benefitRepository.save(benefit);
         return benefit;
     }
+
+    /** Webhook으로 혜택 등록 알림을 받았을 때 호출한다. Cafe24에서 상세 정보를 재조회해 로컬 DB에 반영한다(Upsert). */
+    public void upsertFromWebhook(String mallId, Integer benefitNo) {
+        TokenCredential credential = authorizationService.getValidCredential(mallId);
+        Benefit fetched = cafe24BenefitPort.getBenefit(mallId, benefitNo, credential);
+        benefitRepository.findByMallIdAndBenefitNo(mallId, benefitNo)
+                .ifPresentOrElse(
+                        existing -> {
+                            fetched.setId(existing.getId());
+                            benefitRepository.save(fetched);
+                        },
+                        () -> benefitRepository.save(fetched)
+                );
+    }
 }

@@ -11,4 +11,6 @@ public interface Cafe24BenefitPort {
     List<Benefit> listBenefits(String mallId, String useBenefit, String startDate, String endDate, TokenCredential credential);
 
     Benefit createBenefit(String mallId, CreateBenefitCommand command, TokenCredential credential);
+
+    Benefit getBenefit(String mallId, Integer benefitNo, TokenCredential credential);
 }

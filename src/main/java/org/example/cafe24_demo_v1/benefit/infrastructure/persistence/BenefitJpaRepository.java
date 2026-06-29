@@ -6,6 +6,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 interface BenefitJpaRepository extends JpaRepository<BenefitEntity, Long> {
 
@@ -19,4 +20,6 @@ interface BenefitJpaRepository extends JpaRepository<BenefitEntity, Long> {
             @Param("useBenefit") String useBenefit,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate);
+
+    Optional<BenefitEntity> findByMallIdAndBenefitNo(String mallId, Integer benefitNo);
 }
