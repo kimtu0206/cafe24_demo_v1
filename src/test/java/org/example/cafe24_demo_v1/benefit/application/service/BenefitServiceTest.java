@@ -17,9 +17,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -98,6 +102,59 @@ class BenefitServiceTest {
         inOrder.verify(authorizationService).getValidCredential("mymall");
         inOrder.verify(cafe24BenefitPort).createBenefit("mymall", command, credential);
         inOrder.verify(benefitRepository).save(created);
+    }
+
+    @Test
+    void syncFromCafe24는_Cafe24_목록을_조회해_신규항목을_insert한다() {
+        Benefit fetched = sampleBenefit();
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        given(cafe24BenefitPort.listBenefits("mymall", null, null, null, credential)).willReturn(List.of(fetched));
+        given(benefitRepository.findByMallIdAndBenefitNo("mymall", fetched.getBenefitNo())).willReturn(Optional.empty());
+
+        benefitService.syncFromCafe24("mymall");
+
+        verify(benefitRepository).save(fetched);
+        assertThat(fetched.getId()).isNull();
+    }
+
+    @Test
+    void syncFromCafe24는_기존_항목이_있으면_id를_세팅_후_update한다() {
+        Benefit fetched = sampleBenefit();
+        Benefit existing = sampleBenefit();
+        existing.setId(42L);
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        given(cafe24BenefitPort.listBenefits("mymall", null, null, null, credential)).willReturn(List.of(fetched));
+        given(benefitRepository.findByMallIdAndBenefitNo("mymall", fetched.getBenefitNo())).willReturn(Optional.of(existing));
+
+        benefitService.syncFromCafe24("mymall");
+
+        assertThat(fetched.getId()).isEqualTo(42L);
+        verify(benefitRepository).save(fetched);
+    }
+
+    @Test
+    void syncFromCafe24는_Cafe24가_빈_목록을_반환하면_DB를_수정하지_않는다() {
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        given(cafe24BenefitPort.listBenefits("mymall", null, null, null, credential)).willReturn(List.of());
+
+        benefitService.syncFromCafe24("mymall");
+
+        verify(benefitRepository, never()).save(any());
+    }
+
+    @Test
+    void syncFromCafe24는_여러_혜택을_각각_upsert한다() {
+        Benefit b1 = sampleBenefit();
+        Benefit b2 = Benefit.register("mymall", 1, 4, "T", "VIP Sale", "P", "PG", "T",
+                null, null, List.of("P"), "M", List.of(1), "A", "T", null, "T", null, null, null, null, null);
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        given(cafe24BenefitPort.listBenefits("mymall", null, null, null, credential)).willReturn(List.of(b1, b2));
+        given(benefitRepository.findByMallIdAndBenefitNo("mymall", b1.getBenefitNo())).willReturn(Optional.empty());
+        given(benefitRepository.findByMallIdAndBenefitNo("mymall", b2.getBenefitNo())).willReturn(Optional.empty());
+
+        benefitService.syncFromCafe24("mymall");
+
+        verify(benefitRepository, times(2)).save(any());
     }
 
     @Test

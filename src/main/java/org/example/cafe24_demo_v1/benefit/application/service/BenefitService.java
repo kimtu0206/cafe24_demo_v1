@@ -1,6 +1,7 @@
 package org.example.cafe24_demo_v1.benefit.application.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.authorization.application.service.AppAuthorizationService;
 import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
 import org.example.cafe24_demo_v1.benefit.application.command.CreateBenefitCommand;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class BenefitService {
@@ -30,6 +32,23 @@ public class BenefitService {
         Benefit benefit = cafe24BenefitPort.createBenefit(command.mallId(), command, credential);
         benefitRepository.save(benefit);
         return benefit;
+    }
+
+    /** Cafe24 전체 혜택 목록을 조회해 로컬 DB와 동기화한다(Upsert). 스케줄러가 주기적으로 호출한다. */
+    public void syncFromCafe24(String mallId) {
+        TokenCredential credential = authorizationService.getValidCredential(mallId);
+        List<Benefit> benefits = cafe24BenefitPort.listBenefits(mallId, null, null, null, credential);
+        log.info("Benefit sync: mallId={}, fetched={}", mallId, benefits.size());
+        for (Benefit fetched : benefits) {
+            benefitRepository.findByMallIdAndBenefitNo(mallId, fetched.getBenefitNo())
+                    .ifPresentOrElse(
+                            existing -> {
+                                fetched.setId(existing.getId());
+                                benefitRepository.save(fetched);
+                            },
+                            () -> benefitRepository.save(fetched)
+                    );
+        }
     }
 
     /** Webhook으로 혜택 등록 알림을 받았을 때 호출한다. Cafe24에서 상세 정보를 재조회해 로컬 DB에 반영한다(Upsert). */

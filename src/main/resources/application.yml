@@ -24,6 +24,8 @@ sync:
     cron: "0 0 10 * * *"
   carrier:
     cron: "0 30 16 * * *"
+  benefit:
+    cron: "0 31 17 * * *"
 
 spring:
   profiles:
