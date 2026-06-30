@@ -8,6 +8,7 @@ import org.example.cafe24_demo_v1.benefit.application.command.CreateBenefitComma
 import org.example.cafe24_demo_v1.benefit.domain.model.Benefit;
 import org.example.cafe24_demo_v1.benefit.domain.repository.BenefitRepository;
 import org.example.cafe24_demo_v1.benefit.domain.service.Cafe24BenefitPort;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -40,14 +41,7 @@ public class BenefitService {
         List<Benefit> benefits = cafe24BenefitPort.listBenefits(mallId, null, null, null, credential);
         log.info("Benefit sync: mallId={}, fetched={}", mallId, benefits.size());
         for (Benefit fetched : benefits) {
-            benefitRepository.findByMallIdAndBenefitNo(mallId, fetched.getBenefitNo())
-                    .ifPresentOrElse(
-                            existing -> {
-                                fetched.setId(existing.getId());
-                                benefitRepository.save(fetched);
-                            },
-                            () -> benefitRepository.save(fetched)
-                    );
+            upsert(fetched);
         }
     }
 
@@ -55,13 +49,31 @@ public class BenefitService {
     public void upsertFromWebhook(String mallId, Integer benefitNo) {
         TokenCredential credential = authorizationService.getValidCredential(mallId);
         Benefit fetched = cafe24BenefitPort.getBenefit(mallId, benefitNo, credential);
-        benefitRepository.findByMallIdAndBenefitNo(mallId, benefitNo)
+        upsert(fetched);
+    }
+
+    private void upsert(Benefit snapshot) {
+        try {
+            findAndApply(snapshot);
+        } catch (DataIntegrityViolationException e) {
+            log.info("Benefit 동시 삽입 경쟁으로 충돌, 재조회 후 갱신으로 폴백: mallId={}, benefitNo={}",
+                    snapshot.getMallId(), snapshot.getBenefitNo());
+            benefitRepository.findByMallIdAndBenefitNo(snapshot.getMallId(), snapshot.getBenefitNo())
+                    .ifPresent(existing -> {
+                        snapshot.setId(existing.getId());
+                        benefitRepository.save(snapshot);
+                    });
+        }
+    }
+
+    private void findAndApply(Benefit snapshot) {
+        benefitRepository.findByMallIdAndBenefitNo(snapshot.getMallId(), snapshot.getBenefitNo())
                 .ifPresentOrElse(
                         existing -> {
-                            fetched.setId(existing.getId());
-                            benefitRepository.save(fetched);
+                            snapshot.setId(existing.getId());
+                            benefitRepository.save(snapshot);
                         },
-                        () -> benefitRepository.save(fetched)
+                        () -> benefitRepository.save(snapshot)
                 );
     }
 }

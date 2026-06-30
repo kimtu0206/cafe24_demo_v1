@@ -19,9 +19,12 @@ import java.util.List;
 
 import java.util.Optional;
 
+import org.springframework.dao.DataIntegrityViolationException;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -155,6 +158,55 @@ class BenefitServiceTest {
         benefitService.syncFromCafe24("mymall");
 
         verify(benefitRepository, times(2)).save(any());
+    }
+
+    @Test
+    void upsertFromWebhook는_기존_항목이_없으면_신규_저장한다() {
+        Benefit fetched = sampleBenefit();
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        given(cafe24BenefitPort.getBenefit("mymall", fetched.getBenefitNo(), credential)).willReturn(fetched);
+        given(benefitRepository.findByMallIdAndBenefitNo("mymall", fetched.getBenefitNo())).willReturn(Optional.empty());
+
+        benefitService.upsertFromWebhook("mymall", fetched.getBenefitNo());
+
+        verify(benefitRepository).save(fetched);
+        assertThat(fetched.getId()).isNull();
+    }
+
+    @Test
+    void upsertFromWebhook는_기존_항목이_있으면_id를_세팅_후_update한다() {
+        Benefit fetched = sampleBenefit();
+        Benefit existing = sampleBenefit();
+        existing.setId(99L);
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        given(cafe24BenefitPort.getBenefit("mymall", fetched.getBenefitNo(), credential)).willReturn(fetched);
+        given(benefitRepository.findByMallIdAndBenefitNo("mymall", fetched.getBenefitNo())).willReturn(Optional.of(existing));
+
+        benefitService.upsertFromWebhook("mymall", fetched.getBenefitNo());
+
+        assertThat(fetched.getId()).isEqualTo(99L);
+        verify(benefitRepository).save(fetched);
+    }
+
+    @Test
+    void upsert는_동시_삽입_경쟁으로_충돌하면_재조회후_갱신으로_폴백한다() {
+        Benefit fetched = sampleBenefit();
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        given(cafe24BenefitPort.listBenefits("mymall", null, null, null, credential)).willReturn(List.of(fetched));
+
+        Benefit concurrentlyInserted = sampleBenefit();
+        concurrentlyInserted.setId(77L);
+        given(benefitRepository.findByMallIdAndBenefitNo("mymall", fetched.getBenefitNo()))
+                .willReturn(Optional.empty(), Optional.of(concurrentlyInserted));
+        // 첫 번째 save는 충돌 예외, 두 번째(catch 블록 폴백)는 정상 처리
+        willThrow(new DataIntegrityViolationException("duplicate entry"))
+                .willDoNothing()
+                .given(benefitRepository).save(fetched);
+
+        benefitService.syncFromCafe24("mymall");
+
+        assertThat(fetched.getId()).isEqualTo(77L);
+        verify(benefitRepository, times(2)).save(fetched);
     }
 
     @Test
