@@ -32,6 +32,11 @@ public class BenefitRepositoryAdapter implements BenefitRepository {
     }
 
     @Override
+    public void deleteByMallIdAndBenefitNo(String mallId, Integer benefitNo) {
+        jpaRepository.deleteByMallIdAndBenefitNo(mallId, benefitNo);
+    }
+
+    @Override
     public List<Benefit> findByMallId(String mallId, String useBenefit, String startDate, String endDate) {
         String useBenefitParam = StringUtils.hasText(useBenefit) ? useBenefit : null;
         LocalDateTime startParam = StringUtils.hasText(startDate)

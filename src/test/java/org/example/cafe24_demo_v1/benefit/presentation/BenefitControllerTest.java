@@ -19,6 +19,9 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -207,6 +210,27 @@ class BenefitControllerTest {
                                   "benefitName": "Updated Benefit"
                                 }
                                 """))
+                .andExpect(status().isBadGateway());
+    }
+
+    @Test
+    void 혜택_삭제_요청이_성공하면_200과_benefitNo를_반환한다() throws Exception {
+        given(cafe24Properties.getMallId()).willReturn("mymall");
+
+        mockMvc.perform(delete("/benefits/3"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.benefit.benefitNo").value(3));
+
+        verify(benefitService).delete("mymall", 3);
+    }
+
+    @Test
+    void 혜택_삭제_중_Cafe24_오류는_502로_변환한다() throws Exception {
+        given(cafe24Properties.getMallId()).willReturn("mymall");
+        willThrow(new Cafe24ApiException("failed", HttpStatus.BAD_REQUEST, "{}", null))
+                .given(benefitService).delete("mymall", 3);
+
+        mockMvc.perform(delete("/benefits/3"))
                 .andExpect(status().isBadGateway());
     }
 }

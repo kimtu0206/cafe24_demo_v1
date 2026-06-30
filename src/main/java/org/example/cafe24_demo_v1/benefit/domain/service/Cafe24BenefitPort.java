@@ -16,4 +16,6 @@ public interface Cafe24BenefitPort {
     Benefit updateBenefit(String mallId, UpdateBenefitCommand command, TokenCredential credential);
 
     Benefit getBenefit(String mallId, Integer benefitNo, TokenCredential credential);
+
+    void deleteBenefit(String mallId, Integer benefitNo, TokenCredential credential);
 }

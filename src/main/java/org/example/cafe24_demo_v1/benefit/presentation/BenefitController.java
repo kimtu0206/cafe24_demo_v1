@@ -13,6 +13,7 @@ import org.example.cafe24_demo_v1.benefit.domain.model.PeriodSale;
 import org.example.cafe24_demo_v1.shared.config.Cafe24Properties;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -63,6 +64,14 @@ public class BenefitController {
         UpdateBenefitCommand command = request.toCommand(cafe24Properties.getMallId(), benefitNo);
         Benefit benefit = benefitService.update(command);
         return ResponseEntity.ok(new BenefitUpdatedResponse(BenefitResponse.from(benefit)));
+    }
+
+    @Operation(summary = "혜택 삭제", description = "Cafe24 혜택을 삭제합니다. 삭제 후 로컬 DB에서도 제거됩니다.")
+    @DeleteMapping("/{benefitNo}")
+    public ResponseEntity<?> delete(@PathVariable Integer benefitNo) {
+        String mallId = cafe24Properties.getMallId();
+        benefitService.delete(mallId, benefitNo);
+        return ResponseEntity.ok(new BenefitDeletedResponse(new DeletedBenefitInfo(benefitNo)));
     }
 
     private record BenefitResponse(
@@ -120,6 +129,10 @@ public class BenefitController {
     private record BenefitCreatedResponse(BenefitResponse benefit) {}
 
     private record BenefitUpdatedResponse(BenefitResponse benefit) {}
+
+    private record BenefitDeletedResponse(DeletedBenefitInfo benefit) {}
+
+    private record DeletedBenefitInfo(Integer benefitNo) {}
 
     private record CreateBenefitRequest(
             @Schema(example = "1") Integer shopNo,

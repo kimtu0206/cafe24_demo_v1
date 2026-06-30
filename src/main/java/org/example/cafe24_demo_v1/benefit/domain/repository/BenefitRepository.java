@@ -12,4 +12,6 @@ public interface BenefitRepository {
     List<Benefit> findByMallId(String mallId, String useBenefit, String startDate, String endDate);
 
     Optional<Benefit> findByMallIdAndBenefitNo(String mallId, Integer benefitNo);
+
+    void deleteByMallIdAndBenefitNo(String mallId, Integer benefitNo);
 }

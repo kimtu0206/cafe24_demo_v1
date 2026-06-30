@@ -22,4 +22,6 @@ interface BenefitJpaRepository extends JpaRepository<BenefitEntity, Long> {
             @Param("endDate") LocalDateTime endDate);
 
     Optional<BenefitEntity> findByMallIdAndBenefitNo(String mallId, Integer benefitNo);
+
+    void deleteByMallIdAndBenefitNo(String mallId, Integer benefitNo);
 }

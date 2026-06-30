@@ -253,6 +253,27 @@ class BenefitServiceTest {
     }
 
     @Test
+    void deleteFromWebhook는_Cafe24_호출_없이_로컬DB에서만_삭제한다() {
+        benefitService.deleteFromWebhook("mymall", 3);
+
+        verify(benefitRepository).deleteByMallIdAndBenefitNo("mymall", 3);
+        verifyNoInteractions(cafe24BenefitPort);
+        verifyNoInteractions(authorizationService);
+    }
+
+    @Test
+    void delete는_Cafe24_삭제_후_로컬DB에서도_삭제한다() {
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+
+        benefitService.delete("mymall", 3);
+
+        InOrder inOrder = Mockito.inOrder(authorizationService, cafe24BenefitPort, benefitRepository);
+        inOrder.verify(authorizationService).getValidCredential("mymall");
+        inOrder.verify(cafe24BenefitPort).deleteBenefit("mymall", 3, credential);
+        inOrder.verify(benefitRepository).deleteByMallIdAndBenefitNo("mymall", 3);
+    }
+
+    @Test
     void create는_Cafe24_API가_반환한_Benefit을_그대로_반환한다() {
         given(authorizationService.getValidCredential("mymall")).willReturn(credential);
         Benefit expected = sampleBenefit();

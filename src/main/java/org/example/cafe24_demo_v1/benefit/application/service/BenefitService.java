@@ -11,6 +11,7 @@ import org.example.cafe24_demo_v1.benefit.domain.repository.BenefitRepository;
 import org.example.cafe24_demo_v1.benefit.domain.service.Cafe24BenefitPort;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -34,6 +35,20 @@ public class BenefitService {
         Benefit benefit = cafe24BenefitPort.createBenefit(command.mallId(), command, credential);
         benefitRepository.save(benefit);
         return benefit;
+    }
+
+    /** Cafe24 혜택을 삭제하고 로컬 DB에서도 제거한다. */
+    @Transactional
+    public void delete(String mallId, Integer benefitNo) {
+        TokenCredential credential = authorizationService.getValidCredential(mallId);
+        cafe24BenefitPort.deleteBenefit(mallId, benefitNo, credential);
+        benefitRepository.deleteByMallIdAndBenefitNo(mallId, benefitNo);
+    }
+
+    /** Webhook으로 혜택 삭제 알림을 받았을 때 호출한다. Cafe24에 이미 삭제된 상태이므로 로컬 DB에서만 제거한다. */
+    @Transactional
+    public void deleteFromWebhook(String mallId, Integer benefitNo) {
+        benefitRepository.deleteByMallIdAndBenefitNo(mallId, benefitNo);
     }
 
     /** Cafe24 혜택을 수정하고 결과를 로컬 DB에 반영한다(Upsert). */

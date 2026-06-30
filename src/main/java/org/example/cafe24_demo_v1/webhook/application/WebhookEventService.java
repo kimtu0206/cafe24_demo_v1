@@ -11,6 +11,7 @@ import org.example.cafe24_demo_v1.order.application.service.OrderWebhookEventSer
 import org.example.cafe24_demo_v1.product.application.service.ProductService;
 import org.example.cafe24_demo_v1.webhook.domain.event.AppUninstalledEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.BenefitCreatedEvent;
+import org.example.cafe24_demo_v1.webhook.domain.event.BenefitDeletedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.BenefitUpdatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.CarrierCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.CarrierDeletedEvent;
@@ -232,6 +233,29 @@ public class WebhookEventService {
 
         log.info("Benefit updated: mallId={}, benefitNo={}", event.getMallId(), event.getBenefitNo());
         benefitService.upsertFromWebhook(event.getMallId(), event.getBenefitNo());
+    }
+
+    /**
+     * 혜택 삭제 이벤트 처리기.
+     * eventNo + mallId + benefitNo 조합으로 중복 수신을 확인한 뒤,
+     * 최초 수신 시에만 로컬 DB에서 혜택을 삭제한다.
+     * Cafe24에 이미 삭제된 상태이므로 API를 다시 호출하지 않는다.
+     */
+    @Transactional
+    @EventListener
+    public void onBenefitDeleted(BenefitDeletedEvent event) {
+        String resourceId = String.valueOf(event.getBenefitNo());
+
+        if (benefitWebhookEventRepository.exists(event.getEventNo(), event.getMallId(), resourceId)) {
+            log.info("Duplicate webhook ignored: eventNo={}, mallId={}, benefitNo={}",
+                    event.getEventNo(), event.getMallId(), event.getBenefitNo());
+            return;
+        }
+
+        benefitWebhookEventRepository.save(event.getEventNo(), WebhookEventType.BENEFIT_DELETED.name(), event.getMallId(), resourceId);
+
+        log.info("Benefit deleted: mallId={}, benefitNo={}", event.getMallId(), event.getBenefitNo());
+        benefitService.deleteFromWebhook(event.getMallId(), event.getBenefitNo());
     }
 
     /**

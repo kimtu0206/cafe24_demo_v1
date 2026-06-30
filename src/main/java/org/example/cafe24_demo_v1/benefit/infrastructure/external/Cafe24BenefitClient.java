@@ -92,6 +92,12 @@ public class Cafe24BenefitClient implements Cafe24BenefitPort {
         return toDomain(mallId, response.getBenefit());
     }
 
+    @Override
+    public void deleteBenefit(String mallId, Integer benefitNo, TokenCredential credential) {
+        String url = baseUrl(mallId) + "/benefits/" + benefitNo;
+        exchange(mallId, url, HttpMethod.DELETE, new HttpEntity<>(headers(credential)), Void.class);
+    }
+
     private String baseUrl(String mallId) {
         return "https://" + mallId + ".cafe24api.com/api/v2/admin";
     }
