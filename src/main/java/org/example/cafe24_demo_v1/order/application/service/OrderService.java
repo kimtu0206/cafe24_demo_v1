@@ -9,6 +9,7 @@ import org.example.cafe24_demo_v1.monitoring.domain.model.SyncTarget;
 import org.example.cafe24_demo_v1.order.domain.model.Order;
 import org.example.cafe24_demo_v1.order.domain.repository.OrderRepository;
 import org.example.cafe24_demo_v1.order.domain.service.Cafe24OrderPort;
+import org.example.cafe24_demo_v1.shared.application.SyncFailureRecorder;
 import org.example.cafe24_demo_v1.shared.application.SyncResult;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -30,13 +31,14 @@ public class OrderService {
     private final Cafe24OrderPort cafe24OrderPort;
     private final AppAuthorizationService authorizationService;
     private final SyncMetricsService syncMetricsService;
+    private final SyncFailureRecorder syncFailureRecorder;
 
     public SyncResult syncFromCafe24(String mallId, LocalDateTime updatedSince) {
         TokenCredential credential;
         try {
             credential = authorizationService.getValidCredential(mallId);
         } catch (Exception e) {
-            return recordAuthFailure(mallId, "Order sync", e);
+            return syncFailureRecorder.recordAuthFailure(mallId, SyncTarget.ORDER, e);
         }
 
         SyncResult result = syncPages(
@@ -78,19 +80,6 @@ public class OrderService {
 
         log.info("Order backfill finished: mallId={}, startDate={}, endDate={}, processedCount={}, failedCount={}, apiFailureCount={}",
                 mallId, startDate, endDate, result.processedCount(), result.failedCount(), result.apiFailureCount());
-        return result;
-    }
-
-    /**
-     * 토큰 조회/갱신(getValidCredential) 실패는 Cafe24 API 호출 자체가 실패한 것과 동일하게
-     * 취급한다 — 이번 실행을 안전하게 중단하고 SyncMetricsService에 기록한 뒤, 예외를 호출자
-     * (스케줄러)까지 전파하지 않는다.
-     */
-    private SyncResult recordAuthFailure(String mallId, String logPrefix, Exception e) {
-        log.error("{} 인증 실패, 이번 실행 중단: mallId={}", logPrefix, mallId, e);
-        SyncResult result = new SyncResult(0, 0, 1, e.getMessage());
-        syncMetricsService.recordRun(mallId, SyncTarget.ORDER,
-                result.processedCount(), result.failedCount(), result.apiFailureCount(), result.errorMessage());
         return result;
     }
 

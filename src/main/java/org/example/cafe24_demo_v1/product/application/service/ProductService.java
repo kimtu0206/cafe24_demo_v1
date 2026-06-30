@@ -14,6 +14,7 @@ import org.example.cafe24_demo_v1.product.domain.model.ProductPage;
 import org.example.cafe24_demo_v1.product.domain.model.ProductRegistration;
 import org.example.cafe24_demo_v1.product.domain.repository.ProductRepository;
 import org.example.cafe24_demo_v1.product.domain.service.Cafe24ProductPort;
+import org.example.cafe24_demo_v1.shared.application.SyncFailureRecorder;
 import org.example.cafe24_demo_v1.shared.application.SyncResult;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -42,6 +43,7 @@ public class ProductService {
     private final Cafe24ProductPort cafe24ProductPort;
     private final AppAuthorizationService authorizationService;
     private final SyncMetricsService syncMetricsService;
+    private final SyncFailureRecorder syncFailureRecorder;
 
     /**
      * Cafe24에 신규 상품을 등록하고, 등록 결과(product_no, 상품명, 판매가, 상태)를 로컬 DB에 저장한다.
@@ -135,11 +137,7 @@ public class ProductService {
         try {
             credential = authorizationService.getValidCredential(mallId);
         } catch (Exception e) {
-            log.error("Product sync 인증 실패, 이번 실행 중단: mallId={}", mallId, e);
-            SyncResult failure = new SyncResult(0, 0, 1, e.getMessage());
-            syncMetricsService.recordRun(mallId, SyncTarget.PRODUCT,
-                    failure.processedCount(), failure.failedCount(), failure.apiFailureCount(), failure.errorMessage());
-            return failure;
+            return syncFailureRecorder.recordAuthFailure(mallId, SyncTarget.PRODUCT, e);
         }
 
         PageSyncResult pageResult = syncPages(mallId, credential);

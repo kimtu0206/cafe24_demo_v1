@@ -13,6 +13,7 @@ import org.example.cafe24_demo_v1.product.domain.model.ProductRegistration;
 import org.example.cafe24_demo_v1.product.domain.model.ProductStatus;
 import org.example.cafe24_demo_v1.product.domain.repository.ProductRepository;
 import org.example.cafe24_demo_v1.product.domain.service.Cafe24ProductPort;
+import org.example.cafe24_demo_v1.shared.application.SyncFailureRecorder;
 import org.example.cafe24_demo_v1.shared.application.SyncResult;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,6 +47,7 @@ class ProductServiceTest {
     @Mock private Cafe24ProductPort cafe24ProductPort;
     @Mock private AppAuthorizationService authorizationService;
     @Mock private SyncMetricsService syncMetricsService;
+    @Mock private SyncFailureRecorder syncFailureRecorder;
 
     private ProductService productService;
 
@@ -55,7 +57,7 @@ class ProductServiceTest {
 
     @BeforeEach
     void setUp() {
-        productService = new ProductService(repository, cafe24ProductPort, authorizationService, syncMetricsService);
+        productService = new ProductService(repository, cafe24ProductPort, authorizationService, syncMetricsService, syncFailureRecorder);
     }
 
     @Test
@@ -262,6 +264,8 @@ class ProductServiceTest {
     void syncFromCafe24는_인증_실패하면_이번_실행만_중단하고_API_실패로_기록한다() {
         IllegalStateException authException = new IllegalStateException("Authorization not found: mymall");
         willThrow(authException).given(authorizationService).getValidCredential("mymall");
+        SyncResult failureResult = new SyncResult(0, 0, 1, authException.getMessage());
+        given(syncFailureRecorder.recordAuthFailure("mymall", SyncTarget.PRODUCT, authException)).willReturn(failureResult);
 
         SyncResult result = productService.syncFromCafe24("mymall");
 
@@ -269,8 +273,7 @@ class ProductServiceTest {
         assertThat(result.processedCount()).isZero();
         verify(repository, never()).findAllByMallId(any());
         verify(cafe24ProductPort, never()).getProducts(any(), anyInt(), anyInt(), any());
-        verify(syncMetricsService).recordRun(
-                "mymall", SyncTarget.PRODUCT, 0, 0, 1, authException.getMessage());
+        verify(syncFailureRecorder).recordAuthFailure("mymall", SyncTarget.PRODUCT, authException);
     }
 
     @Test

@@ -9,6 +9,7 @@ import org.example.cafe24_demo_v1.carrier.domain.repository.CarrierRepository;
 import org.example.cafe24_demo_v1.carrier.domain.service.Cafe24CarrierPort;
 import org.example.cafe24_demo_v1.monitoring.application.service.SyncMetricsService;
 import org.example.cafe24_demo_v1.monitoring.domain.model.SyncTarget;
+import org.example.cafe24_demo_v1.shared.application.SyncFailureRecorder;
 import org.example.cafe24_demo_v1.shared.application.SyncResult;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +44,7 @@ class CarrierServiceTest {
     @Mock private Cafe24CarrierPort cafe24CarrierPort;
     @Mock private AppAuthorizationService authorizationService;
     @Mock private SyncMetricsService syncMetricsService;
+    @Mock private SyncFailureRecorder syncFailureRecorder;
 
     private CarrierService carrierService;
 
@@ -52,7 +54,7 @@ class CarrierServiceTest {
 
     @BeforeEach
     void setUp() {
-        carrierService = new CarrierService(repository, cafe24CarrierPort, authorizationService, syncMetricsService);
+        carrierService = new CarrierService(repository, cafe24CarrierPort, authorizationService, syncMetricsService, syncFailureRecorder);
     }
 
     @Test
@@ -112,14 +114,15 @@ class CarrierServiceTest {
     void syncFromCafe24는_인증_실패하면_이번_실행만_중단하고_API_실패로_기록한다() {
         IllegalStateException authException = new IllegalStateException("Authorization not found: mymall");
         willThrow(authException).given(authorizationService).getValidCredential("mymall");
+        SyncResult failureResult = new SyncResult(0, 0, 1, authException.getMessage());
+        given(syncFailureRecorder.recordAuthFailure("mymall", SyncTarget.CARRIER, authException)).willReturn(failureResult);
 
         SyncResult result = carrierService.syncFromCafe24("mymall");
 
         assertThat(result.apiFailureCount()).isEqualTo(1);
         assertThat(result.processedCount()).isZero();
         verify(cafe24CarrierPort, never()).getCarriers(any(), anyInt(), anyInt(), any());
-        verify(syncMetricsService).recordRun(
-                "mymall", SyncTarget.CARRIER, 0, 0, 1, authException.getMessage());
+        verify(syncFailureRecorder).recordAuthFailure("mymall", SyncTarget.CARRIER, authException);
     }
 
     @Test

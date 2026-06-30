@@ -8,6 +8,7 @@ import org.example.cafe24_demo_v1.order.domain.model.Order;
 import org.example.cafe24_demo_v1.order.domain.model.OrderEmbeddedResources;
 import org.example.cafe24_demo_v1.order.domain.repository.OrderRepository;
 import org.example.cafe24_demo_v1.order.domain.service.Cafe24OrderPort;
+import org.example.cafe24_demo_v1.shared.application.SyncFailureRecorder;
 import org.example.cafe24_demo_v1.shared.application.SyncResult;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,6 +42,7 @@ class OrderServiceTest {
     @Mock private Cafe24OrderPort cafe24OrderPort;
     @Mock private AppAuthorizationService authorizationService;
     @Mock private SyncMetricsService syncMetricsService;
+    @Mock private SyncFailureRecorder syncFailureRecorder;
 
     private OrderService orderService;
 
@@ -50,7 +52,7 @@ class OrderServiceTest {
 
     @BeforeEach
     void setUp() {
-        orderService = new OrderService(repository, cafe24OrderPort, authorizationService, syncMetricsService);
+        orderService = new OrderService(repository, cafe24OrderPort, authorizationService, syncMetricsService, syncFailureRecorder);
     }
 
     @Test
@@ -177,12 +179,14 @@ class OrderServiceTest {
         LocalDateTime updatedSince = LocalDateTime.now().minusMinutes(10);
         IllegalStateException authException = new IllegalStateException("Authorization not found: mymall");
         willThrow(authException).given(authorizationService).getValidCredential("mymall");
+        SyncResult failureResult = new SyncResult(0, 0, 1, authException.getMessage());
+        given(syncFailureRecorder.recordAuthFailure("mymall", SyncTarget.ORDER, authException)).willReturn(failureResult);
 
         SyncResult result = orderService.syncFromCafe24("mymall", updatedSince);
 
         assertThat(result.apiFailureCount()).isEqualTo(1);
         assertThat(result.processedCount()).isZero();
-        verify(syncMetricsService).recordRun("mymall", SyncTarget.ORDER, 0, 0, 1, authException.getMessage());
+        verify(syncFailureRecorder).recordAuthFailure("mymall", SyncTarget.ORDER, authException);
         verifyNoInteractions(cafe24OrderPort);
     }
 

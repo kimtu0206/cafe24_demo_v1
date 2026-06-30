@@ -10,6 +10,7 @@ import org.example.cafe24_demo_v1.carrier.domain.repository.CarrierRepository;
 import org.example.cafe24_demo_v1.carrier.domain.service.Cafe24CarrierPort;
 import org.example.cafe24_demo_v1.monitoring.application.service.SyncMetricsService;
 import org.example.cafe24_demo_v1.monitoring.domain.model.SyncTarget;
+import org.example.cafe24_demo_v1.shared.application.SyncFailureRecorder;
 import org.example.cafe24_demo_v1.shared.application.SyncResult;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -34,6 +35,7 @@ public class CarrierService {
     private final Cafe24CarrierPort cafe24CarrierPort;
     private final AppAuthorizationService authorizationService;
     private final SyncMetricsService syncMetricsService;
+    private final SyncFailureRecorder syncFailureRecorder;
 
     /**
      * Cafe24 배송사 전체를 페이지 단위로 조회해 로컬 DB와 동기화한다.
@@ -49,11 +51,7 @@ public class CarrierService {
         try {
             credential = authorizationService.getValidCredential(mallId);
         } catch (Exception e) {
-            log.error("Carrier sync 인증 실패, 이번 실행 중단: mallId={}", mallId, e);
-            SyncResult failure = new SyncResult(0, 0, 1, e.getMessage());
-            syncMetricsService.recordRun(mallId, SyncTarget.CARRIER,
-                    failure.processedCount(), failure.failedCount(), failure.apiFailureCount(), failure.errorMessage());
-            return failure;
+            return syncFailureRecorder.recordAuthFailure(mallId, SyncTarget.CARRIER, e);
         }
 
         SyncResult result = syncPages(mallId, credential);
