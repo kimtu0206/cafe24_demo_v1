@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.example.cafe24_demo_v1.benefit.application.command.CreateBenefitCommand;
+import org.example.cafe24_demo_v1.benefit.application.command.UpdateBenefitCommand;
 import org.example.cafe24_demo_v1.benefit.application.service.BenefitService;
 import org.example.cafe24_demo_v1.benefit.domain.model.Benefit;
 import org.example.cafe24_demo_v1.benefit.domain.model.PeriodSale;
@@ -13,7 +14,9 @@ import org.example.cafe24_demo_v1.shared.config.Cafe24Properties;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -52,6 +55,14 @@ public class BenefitController {
         CreateBenefitCommand command = request.toCommand(cafe24Properties.getMallId());
         Benefit benefit = benefitService.create(command);
         return ResponseEntity.status(HttpStatus.CREATED).body(new BenefitCreatedResponse(BenefitResponse.from(benefit)));
+    }
+
+    @Operation(summary = "혜택 수정", description = "Cafe24 혜택 정보를 수정합니다. 할인 유형(benefit_division, benefit_type)은 수정할 수 없습니다.")
+    @PutMapping("/{benefitNo}")
+    public ResponseEntity<?> update(@PathVariable Integer benefitNo, @RequestBody UpdateBenefitRequest request) {
+        UpdateBenefitCommand command = request.toCommand(cafe24Properties.getMallId(), benefitNo);
+        Benefit benefit = benefitService.update(command);
+        return ResponseEntity.ok(new BenefitUpdatedResponse(BenefitResponse.from(benefit)));
     }
 
     private record BenefitResponse(
@@ -108,6 +119,8 @@ public class BenefitController {
 
     private record BenefitCreatedResponse(BenefitResponse benefit) {}
 
+    private record BenefitUpdatedResponse(BenefitResponse benefit) {}
+
     private record CreateBenefitRequest(
             @Schema(example = "1") Integer shopNo,
             @Schema(example = "T", description = "혜택 사용 여부 (T: 사용, F: 미사용)") String useBenefit,
@@ -138,6 +151,41 @@ public class BenefitController {
                     );
             return new CreateBenefitCommand(
                     mallId, shopNo, useBenefit, benefitName, benefitDivision, benefitType,
+                    useBenefitPeriod, benefitStartDate, benefitEndDate, platformTypes,
+                    useGroupBinding, customerGroupList, productBindingType, useExceptCategory,
+                    availableCoupon, iconUrl, ps
+            );
+        }
+    }
+
+    private record UpdateBenefitRequest(
+            @Schema(example = "1") Integer shopNo,
+            @Schema(example = "T", description = "혜택 사용 여부 (T: 사용, F: 미사용)") String useBenefit,
+            @Schema(example = "Sample Benefit") String benefitName,
+            @Schema(example = "T", description = "혜택 기간 사용 여부 (T: 사용, F: 미사용)") String useBenefitPeriod,
+            @Schema(example = "2019-01-01T12:00:00+09:00") String benefitStartDate,
+            @Schema(example = "2019-01-31T12:00:00+09:00") String benefitEndDate,
+            @Schema(example = "[\"P\", \"M\"]", description = "적용 플랫폼 (P: PC, M: 모바일)") List<String> platformTypes,
+            @Schema(description = "회원 등급 적용 방식 (M: 특정등급, A: 전체등급)") String useGroupBinding,
+            @Schema(description = "적용 회원 등급 번호 목록") List<Integer> customerGroupList,
+            @Schema(example = "A", description = "상품 적용 방식 (A: 전체상품, P: 특정상품)") String productBindingType,
+            @Schema(example = "F", description = "특정 카테고리 제외 여부 (T: 제외, F: 미제외)") String useExceptCategory,
+            @Schema(example = "T", description = "쿠폰 중복 사용 허용 여부 (T: 허용, F: 미허용)") String availableCoupon,
+            @Schema(description = "혜택 아이콘 이미지 URL 또는 Base64 인코딩 이미지 — 생략 가능") String iconUrl,
+            PeriodSaleRequest periodSale
+    ) {
+        UpdateBenefitCommand toCommand(String mallId, Integer benefitNo) {
+            UpdateBenefitCommand.PeriodSaleCommand ps = periodSale == null ? null :
+                    new UpdateBenefitCommand.PeriodSaleCommand(
+                            periodSale.productList(),
+                            periodSale.exceptCategoryList(),
+                            periodSale.discountValue(),
+                            periodSale.discountValueUnit(),
+                            periodSale.discountTruncationUnit(),
+                            periodSale.discountTruncationMethod()
+                    );
+            return new UpdateBenefitCommand(
+                    mallId, benefitNo, shopNo, useBenefit, benefitName,
                     useBenefitPeriod, benefitStartDate, benefitEndDate, platformTypes,
                     useGroupBinding, customerGroupList, productBindingType, useExceptCategory,
                     availableCoupon, iconUrl, ps

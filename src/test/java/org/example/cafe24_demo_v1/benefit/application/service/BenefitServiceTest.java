@@ -3,6 +3,7 @@ package org.example.cafe24_demo_v1.benefit.application.service;
 import org.example.cafe24_demo_v1.authorization.application.service.AppAuthorizationService;
 import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
 import org.example.cafe24_demo_v1.benefit.application.command.CreateBenefitCommand;
+import org.example.cafe24_demo_v1.benefit.application.command.UpdateBenefitCommand;
 import org.example.cafe24_demo_v1.benefit.domain.model.Benefit;
 import org.example.cafe24_demo_v1.benefit.domain.repository.BenefitRepository;
 import org.example.cafe24_demo_v1.benefit.domain.service.Cafe24BenefitPort;
@@ -207,6 +208,48 @@ class BenefitServiceTest {
 
         assertThat(fetched.getId()).isEqualTo(77L);
         verify(benefitRepository, times(2)).save(fetched);
+    }
+
+    @Test
+    void update는_getValidCredential_후_Cafe24_PUT_호출_후_DB에_upsert한다() {
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        Benefit updated = sampleBenefit();
+        given(cafe24BenefitPort.updateBenefit(any(), any(), any())).willReturn(updated);
+        given(benefitRepository.findByMallIdAndBenefitNo("mymall", updated.getBenefitNo())).willReturn(Optional.empty());
+
+        UpdateBenefitCommand command = new UpdateBenefitCommand(
+                "mymall", 3, 1, "T", "Updated Benefit", "T",
+                "2019-01-01T12:00:00+09:00", "2019-01-31T12:00:00+09:00",
+                List.of("P", "M"), "M", List.of(8, 9), "P", "T", "T", null, null
+        );
+
+        Benefit result = benefitService.update(command);
+
+        assertThat(result.getBenefitNo()).isEqualTo(3);
+        InOrder inOrder = Mockito.inOrder(authorizationService, cafe24BenefitPort, benefitRepository);
+        inOrder.verify(authorizationService).getValidCredential("mymall");
+        inOrder.verify(cafe24BenefitPort).updateBenefit("mymall", command, credential);
+        inOrder.verify(benefitRepository).save(updated);
+    }
+
+    @Test
+    void update는_기존_항목이_있으면_id를_세팅_후_update한다() {
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        Benefit updated = sampleBenefit();
+        Benefit existing = sampleBenefit();
+        existing.setId(55L);
+        given(cafe24BenefitPort.updateBenefit(any(), any(), any())).willReturn(updated);
+        given(benefitRepository.findByMallIdAndBenefitNo("mymall", updated.getBenefitNo())).willReturn(Optional.of(existing));
+
+        UpdateBenefitCommand command = new UpdateBenefitCommand(
+                "mymall", 3, 1, "F", "Updated Benefit", "F",
+                null, null, List.of(), null, List.of(), "A", "F", "F", null, null
+        );
+
+        benefitService.update(command);
+
+        assertThat(updated.getId()).isEqualTo(55L);
+        verify(benefitRepository).save(updated);
     }
 
     @Test

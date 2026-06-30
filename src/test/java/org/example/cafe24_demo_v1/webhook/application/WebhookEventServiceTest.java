@@ -8,6 +8,7 @@ import org.example.cafe24_demo_v1.order.application.service.OrderWebhookEventSer
 import org.example.cafe24_demo_v1.product.application.service.ProductService;
 import org.example.cafe24_demo_v1.webhook.domain.event.AppUninstalledEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.BenefitCreatedEvent;
+import org.example.cafe24_demo_v1.webhook.domain.event.BenefitUpdatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.CarrierCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.CarrierDeletedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.CarrierUpdatedEvent;
@@ -200,6 +201,25 @@ class WebhookEventServiceTest {
         given(benefitWebhookEventRepository.exists(90091, "mymall", "1000")).willReturn(true);
 
         webhookEventService.onBenefitCreated(new BenefitCreatedEvent(90091, "mymall", 1000));
+
+        verify(benefitService, never()).upsertFromWebhook(ArgumentMatchers.any(), ArgumentMatchers.any());
+    }
+
+    @Test
+    void 혜택_수정_이벤트는_혜택_전용_이력_테이블에_저장하고_Cafe24에서_상세를_재조회한다() {
+        given(benefitWebhookEventRepository.exists(90092, "mymall", "1000")).willReturn(false);
+
+        webhookEventService.onBenefitUpdated(new BenefitUpdatedEvent(90092, "mymall", 1000));
+
+        verify(benefitWebhookEventRepository).save(90092, "BENEFIT_UPDATED", "mymall", "1000");
+        verify(benefitService).upsertFromWebhook("mymall", 1000);
+    }
+
+    @Test
+    void 이미_처리한_혜택_수정_이벤트는_무시한다() {
+        given(benefitWebhookEventRepository.exists(90092, "mymall", "1000")).willReturn(true);
+
+        webhookEventService.onBenefitUpdated(new BenefitUpdatedEvent(90092, "mymall", 1000));
 
         verify(benefitService, never()).upsertFromWebhook(ArgumentMatchers.any(), ArgumentMatchers.any());
     }

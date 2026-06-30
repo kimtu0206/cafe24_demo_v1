@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.authorization.application.service.AppAuthorizationService;
 import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
 import org.example.cafe24_demo_v1.benefit.application.command.CreateBenefitCommand;
+import org.example.cafe24_demo_v1.benefit.application.command.UpdateBenefitCommand;
 import org.example.cafe24_demo_v1.benefit.domain.model.Benefit;
 import org.example.cafe24_demo_v1.benefit.domain.repository.BenefitRepository;
 import org.example.cafe24_demo_v1.benefit.domain.service.Cafe24BenefitPort;
@@ -32,6 +33,14 @@ public class BenefitService {
         TokenCredential credential = authorizationService.getValidCredential(command.mallId());
         Benefit benefit = cafe24BenefitPort.createBenefit(command.mallId(), command, credential);
         benefitRepository.save(benefit);
+        return benefit;
+    }
+
+    /** Cafe24 혜택을 수정하고 결과를 로컬 DB에 반영한다(Upsert). */
+    public Benefit update(UpdateBenefitCommand command) {
+        TokenCredential credential = authorizationService.getValidCredential(command.mallId());
+        Benefit benefit = cafe24BenefitPort.updateBenefit(command.mallId(), command, credential);
+        upsert(benefit);
         return benefit;
     }
 

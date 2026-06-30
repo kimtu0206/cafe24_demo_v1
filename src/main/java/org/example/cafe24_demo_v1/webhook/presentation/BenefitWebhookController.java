@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.webhook.domain.event.BenefitCreatedEvent;
+import org.example.cafe24_demo_v1.webhook.domain.event.BenefitUpdatedEvent;
 import org.example.cafe24_demo_v1.webhook.infrastructure.Cafe24WebhookVerifier;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.ResponseEntity;
@@ -43,6 +44,18 @@ public class BenefitWebhookController extends AbstractCafe24WebhookController {
             log.info("Webhook received: eventNo={}, benefitNo={}", payload.eventNo(), payload.resource().benefitNo());
             eventPublisher.publishEvent(
                     new BenefitCreatedEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().benefitNo())
+            );
+            return ResponseEntity.ok().build();
+        });
+    }
+
+    @Operation(summary = "혜택 수정 Webhook 수신", description = "Cafe24 혜택 수정 이벤트를 수신하고 Cafe24 API로 재조회해 로컬 DB에 반영합니다.")
+    @PostMapping("/updated")
+    public ResponseEntity<Void> updated(@Parameter(hidden = true) @RequestHeader Map<String, String> headers, @RequestBody Cafe24WebhookPayload payload) {
+        return reject(headers, payload.eventNo(), payload.resource()).or(() -> requireBenefitNo(payload)).orElseGet(() -> {
+            log.info("Webhook received: eventNo={}, benefitNo={}", payload.eventNo(), payload.resource().benefitNo());
+            eventPublisher.publishEvent(
+                    new BenefitUpdatedEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().benefitNo())
             );
             return ResponseEntity.ok().build();
         });

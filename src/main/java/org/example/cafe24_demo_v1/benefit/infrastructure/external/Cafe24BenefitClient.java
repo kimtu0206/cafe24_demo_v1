@@ -3,6 +3,7 @@ package org.example.cafe24_demo_v1.benefit.infrastructure.external;
 import lombok.extern.slf4j.Slf4j;
 import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
 import org.example.cafe24_demo_v1.benefit.application.command.CreateBenefitCommand;
+import org.example.cafe24_demo_v1.benefit.application.command.UpdateBenefitCommand;
 import org.example.cafe24_demo_v1.benefit.domain.model.Benefit;
 import org.example.cafe24_demo_v1.benefit.domain.model.PeriodSale;
 import org.example.cafe24_demo_v1.benefit.domain.service.Cafe24BenefitPort;
@@ -69,6 +70,16 @@ public class Cafe24BenefitClient implements Cafe24BenefitPort {
         HttpEntity<Cafe24CreateBenefitRequest> entity = new HttpEntity<>(requestBody, headers(credential));
 
         Cafe24CreateBenefitResponse response = exchange(mallId, url, HttpMethod.POST, entity, Cafe24CreateBenefitResponse.class);
+        return toDomain(mallId, response.getBenefit());
+    }
+
+    @Override
+    public Benefit updateBenefit(String mallId, UpdateBenefitCommand command, TokenCredential credential) {
+        String url = baseUrl(mallId) + "/benefits/" + command.benefitNo();
+        Cafe24UpdateBenefitRequest requestBody = Cafe24UpdateBenefitRequest.from(command);
+        HttpEntity<Cafe24UpdateBenefitRequest> entity = new HttpEntity<>(requestBody, headers(credential));
+
+        Cafe24CreateBenefitResponse response = exchange(mallId, url, HttpMethod.PUT, entity, Cafe24CreateBenefitResponse.class);
         return toDomain(mallId, response.getBenefit());
     }
 

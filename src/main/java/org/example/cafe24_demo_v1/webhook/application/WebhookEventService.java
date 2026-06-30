@@ -11,6 +11,7 @@ import org.example.cafe24_demo_v1.order.application.service.OrderWebhookEventSer
 import org.example.cafe24_demo_v1.product.application.service.ProductService;
 import org.example.cafe24_demo_v1.webhook.domain.event.AppUninstalledEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.BenefitCreatedEvent;
+import org.example.cafe24_demo_v1.webhook.domain.event.BenefitUpdatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.CarrierCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.CarrierDeletedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.CarrierUpdatedEvent;
@@ -208,6 +209,28 @@ public class WebhookEventService {
         benefitWebhookEventRepository.save(event.getEventNo(), WebhookEventType.BENEFIT_CREATED.name(), event.getMallId(), resourceId);
 
         log.info("Benefit created: mallId={}, benefitNo={}", event.getMallId(), event.getBenefitNo());
+        benefitService.upsertFromWebhook(event.getMallId(), event.getBenefitNo());
+    }
+
+    /**
+     * 혜택 수정 이벤트 처리기.
+     * eventNo + mallId + benefitNo 조합으로 중복 수신을 확인한 뒤,
+     * 최초 수신 시에만 Cafe24에서 혜택 상세를 다시 조회해 로컬 DB에 반영한다.
+     */
+    @Transactional
+    @EventListener
+    public void onBenefitUpdated(BenefitUpdatedEvent event) {
+        String resourceId = String.valueOf(event.getBenefitNo());
+
+        if (benefitWebhookEventRepository.exists(event.getEventNo(), event.getMallId(), resourceId)) {
+            log.info("Duplicate webhook ignored: eventNo={}, mallId={}, benefitNo={}",
+                    event.getEventNo(), event.getMallId(), event.getBenefitNo());
+            return;
+        }
+
+        benefitWebhookEventRepository.save(event.getEventNo(), WebhookEventType.BENEFIT_UPDATED.name(), event.getMallId(), resourceId);
+
+        log.info("Benefit updated: mallId={}, benefitNo={}", event.getMallId(), event.getBenefitNo());
         benefitService.upsertFromWebhook(event.getMallId(), event.getBenefitNo());
     }
 
