@@ -9,6 +9,7 @@ import org.example.cafe24_demo_v1.monitoring.domain.model.SyncTarget;
 import org.example.cafe24_demo_v1.order.domain.model.Order;
 import org.example.cafe24_demo_v1.order.domain.repository.OrderRepository;
 import org.example.cafe24_demo_v1.order.domain.service.Cafe24OrderPort;
+import org.example.cafe24_demo_v1.shared.application.SyncResult;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -136,8 +137,6 @@ public class OrderService {
 
         return new SyncResult(processedCount, failedCount, 0, null);
     }
-
-    public record SyncResult(int processedCount, int failedCount, int apiFailureCount, String errorMessage) {}
 
     private void upsert(Order snapshot) {
         try {

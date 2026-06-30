@@ -9,6 +9,7 @@ import org.example.cafe24_demo_v1.carrier.domain.repository.CarrierRepository;
 import org.example.cafe24_demo_v1.carrier.domain.service.Cafe24CarrierPort;
 import org.example.cafe24_demo_v1.monitoring.application.service.SyncMetricsService;
 import org.example.cafe24_demo_v1.monitoring.domain.model.SyncTarget;
+import org.example.cafe24_demo_v1.shared.application.SyncResult;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -112,7 +113,7 @@ class CarrierServiceTest {
         IllegalStateException authException = new IllegalStateException("Authorization not found: mymall");
         willThrow(authException).given(authorizationService).getValidCredential("mymall");
 
-        CarrierService.SyncResult result = carrierService.syncFromCafe24("mymall");
+        SyncResult result = carrierService.syncFromCafe24("mymall");
 
         assertThat(result.apiFailureCount()).isEqualTo(1);
         assertThat(result.processedCount()).isZero();

@@ -5,9 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.example.cafe24_demo_v1.admin.application.BackfillService;
-import org.example.cafe24_demo_v1.carrier.application.service.CarrierService;
-import org.example.cafe24_demo_v1.order.application.service.OrderService;
-import org.example.cafe24_demo_v1.product.application.service.ProductService;
+import org.example.cafe24_demo_v1.shared.application.SyncResult;
 import org.example.cafe24_demo_v1.shared.config.Cafe24Properties;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -34,21 +32,21 @@ public class AdminBackfillController {
             @Parameter(description = "조회 시작일 (yyyy-MM-dd)") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @Parameter(description = "조회 종료일 (yyyy-MM-dd)") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
     ) {
-        OrderService.SyncResult result = backfillService.backfillOrders(cafe24Properties.getMallId(), startDate, endDate);
+        SyncResult result = backfillService.backfillOrders(cafe24Properties.getMallId(), startDate, endDate);
         return toResponse("orders", result.processedCount(), result.failedCount(), result.apiFailureCount(), result.errorMessage());
     }
 
     @Operation(summary = "상품 Backfill", description = "Cafe24에서 전체 상품을 재조회해 로컬 DB에 반영합니다. Cafe24 API 호출 실패 시 502를 반환합니다.")
     @PostMapping("/products")
     public ResponseEntity<BackfillResponse> backfillProducts() {
-        ProductService.SyncResult result = backfillService.backfillProducts(cafe24Properties.getMallId());
+        SyncResult result = backfillService.backfillProducts(cafe24Properties.getMallId());
         return toResponse("products", result.processedCount(), result.failedCount(), result.apiFailureCount(), result.errorMessage());
     }
 
     @Operation(summary = "배송사 Backfill", description = "Cafe24에서 전체 배송사를 재조회해 로컬 DB에 반영합니다. Cafe24 API 호출 실패 시 502를 반환합니다.")
     @PostMapping("/carriers")
     public ResponseEntity<BackfillResponse> backfillCarriers() {
-        CarrierService.SyncResult result = backfillService.backfillCarriers(cafe24Properties.getMallId());
+        SyncResult result = backfillService.backfillCarriers(cafe24Properties.getMallId());
         return toResponse("carriers", result.processedCount(), result.failedCount(), result.apiFailureCount(), result.errorMessage());
     }
 

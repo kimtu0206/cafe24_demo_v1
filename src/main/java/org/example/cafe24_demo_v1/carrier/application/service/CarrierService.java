@@ -10,6 +10,7 @@ import org.example.cafe24_demo_v1.carrier.domain.repository.CarrierRepository;
 import org.example.cafe24_demo_v1.carrier.domain.service.Cafe24CarrierPort;
 import org.example.cafe24_demo_v1.monitoring.application.service.SyncMetricsService;
 import org.example.cafe24_demo_v1.monitoring.domain.model.SyncTarget;
+import org.example.cafe24_demo_v1.shared.application.SyncResult;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -98,8 +99,6 @@ public class CarrierService {
 
         return new SyncResult(processedCount, failedCount, 0, null);
     }
-
-    public record SyncResult(int processedCount, int failedCount, int apiFailureCount, String errorMessage) {}
 
     /**
      * Cafe24에 새 배송사를 등록하고 결과를 로컬 DB에 저장한다.

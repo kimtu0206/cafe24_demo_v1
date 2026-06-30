@@ -13,6 +13,7 @@ import org.example.cafe24_demo_v1.product.domain.model.ProductRegistration;
 import org.example.cafe24_demo_v1.product.domain.model.ProductStatus;
 import org.example.cafe24_demo_v1.product.domain.repository.ProductRepository;
 import org.example.cafe24_demo_v1.product.domain.service.Cafe24ProductPort;
+import org.example.cafe24_demo_v1.shared.application.SyncResult;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -262,7 +263,7 @@ class ProductServiceTest {
         IllegalStateException authException = new IllegalStateException("Authorization not found: mymall");
         willThrow(authException).given(authorizationService).getValidCredential("mymall");
 
-        ProductService.SyncResult result = productService.syncFromCafe24("mymall");
+        SyncResult result = productService.syncFromCafe24("mymall");
 
         assertThat(result.apiFailureCount()).isEqualTo(1);
         assertThat(result.processedCount()).isZero();

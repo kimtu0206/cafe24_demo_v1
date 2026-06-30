@@ -8,6 +8,7 @@ import org.example.cafe24_demo_v1.order.domain.model.Order;
 import org.example.cafe24_demo_v1.order.domain.model.OrderEmbeddedResources;
 import org.example.cafe24_demo_v1.order.domain.repository.OrderRepository;
 import org.example.cafe24_demo_v1.order.domain.service.Cafe24OrderPort;
+import org.example.cafe24_demo_v1.shared.application.SyncResult;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -177,7 +178,7 @@ class OrderServiceTest {
         IllegalStateException authException = new IllegalStateException("Authorization not found: mymall");
         willThrow(authException).given(authorizationService).getValidCredential("mymall");
 
-        OrderService.SyncResult result = orderService.syncFromCafe24("mymall", updatedSince);
+        SyncResult result = orderService.syncFromCafe24("mymall", updatedSince);
 
         assertThat(result.apiFailureCount()).isEqualTo(1);
         assertThat(result.processedCount()).isZero();
@@ -192,7 +193,7 @@ class OrderServiceTest {
         IllegalStateException authException = new IllegalStateException("Authorization not found: mymall");
         willThrow(authException).given(authorizationService).getValidCredential("mymall");
 
-        OrderService.SyncResult result = orderService.backfillFromCafe24("mymall", startDate, endDate);
+        SyncResult result = orderService.backfillFromCafe24("mymall", startDate, endDate);
 
         assertThat(result.apiFailureCount()).isEqualTo(1);
         verifyNoInteractions(cafe24OrderPort);
