@@ -14,10 +14,10 @@ import org.example.cafe24_demo_v1.product.domain.model.ProductPage;
 import org.example.cafe24_demo_v1.product.domain.model.ProductRegistration;
 import org.example.cafe24_demo_v1.product.domain.repository.ProductRepository;
 import org.example.cafe24_demo_v1.product.domain.service.Cafe24ProductPort;
+import org.example.cafe24_demo_v1.shared.application.ConcurrentUpsert;
+import org.example.cafe24_demo_v1.shared.application.PagedSyncRunner;
 import org.example.cafe24_demo_v1.shared.application.SyncFailureRecorder;
 import org.example.cafe24_demo_v1.shared.application.SyncResult;
-import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -163,36 +163,19 @@ public class ProductService {
      * 실행만 안전하게 종료한다 — 누락된 나머지는 다음 스케줄 실행이 보완한다.
      */
     private PageSyncResult syncPages(String mallId, TokenCredential credential) {
-        int offset = 0;
-        int processedCount = 0;
-        int failedCount = 0;
         Set<Long> seenProductNos = new HashSet<>();
-        List<Product> page;
-        while (true) {
-            try {
-                page = cafe24ProductPort.getProducts(mallId, offset, SYNC_PAGE_SIZE, credential);
-            } catch (Cafe24ApiException e) {
-                log.error("Product sync Cafe24 API 호출 실패, 이번 실행 중단: mallId={}, offset={}", mallId, offset, e);
-                return new PageSyncResult(processedCount, failedCount, 1, e.getMessage(), seenProductNos);
-            }
-            for (Product snapshot : page) {
-                seenProductNos.add(snapshot.getProductNo());
-                try {
+        SyncResult result = PagedSyncRunner.run(
+                "Product", mallId, SYNC_PAGE_SIZE,
+                (offset, limit) -> cafe24ProductPort.getProducts(mallId, offset, limit, credential),
+                snapshot -> {
+                    seenProductNos.add(snapshot.getProductNo());
                     upsert(snapshot);
-                    processedCount++;
-                } catch (Exception e) {
-                    log.error("Product sync 중 1건 실패, 다음 건 계속 진행: mallId={}, productNo={}",
-                            mallId, snapshot.getProductNo(), e);
-                    failedCount++;
-                }
-            }
-            offset += SYNC_PAGE_SIZE;
-            if (page.size() < SYNC_PAGE_SIZE) {
-                break;
-            }
-        }
-
-        return new PageSyncResult(processedCount, failedCount, 0, null, seenProductNos);
+                },
+                Product::getProductNo
+        );
+        return new PageSyncResult(
+                result.processedCount(), result.failedCount(), result.apiFailureCount(), result.errorMessage(), seenProductNos
+        );
     }
 
     private record PageSyncResult(int processedCount, int failedCount, int apiFailureCount, String errorMessage, Set<Long> seenProductNos) {}
@@ -224,32 +207,15 @@ public class ProductService {
         }
     }
 
-    /**
-     * Cafe24 스냅샷을 로컬 DB에 반영한다. 이미 있으면 갱신, 없으면 신규 저장(Upsert).
-     *
-     * (mall_id, product_no) unique 제약 때문에, 같은 상품을 동시에 반영하는 다른 경로
-     * (syncFromCafe24/update/Webhook 등)와 경쟁하면 INSERT가 DataIntegrityViolationException으로
-     * 실패할 수 있다. 이 경우 다른 트랜잭션이 먼저 넣은 행을 재조회해 갱신으로 폴백한다(Order.upsert와
-     * 동일한 패턴). 이 메서드의 모든 호출부가 @Transactional 없이 호출되어 save()마다 독립된
-     * 트랜잭션으로 즉시 flush되므로 이 폴백이 안전하게 동작한다.
-     */
+    /** Cafe24 스냅샷을 로컬 DB에 반영한다. 이미 있으면 갱신, 없으면 신규 저장(Upsert). */
     private void upsert(Product snapshot) {
-        try {
-            findAndApply(snapshot);
-        } catch (DataIntegrityViolationException e) {
-            log.info("Product 동시 삽입 경쟁으로 충돌, 재조회 후 갱신으로 폴백: mallId={}, productNo={}",
-                    snapshot.getMallId(), snapshot.getProductNo());
-            repository.findByMallIdAndProductNo(snapshot.getMallId(), snapshot.getProductNo())
-                    .ifPresent(existing -> applySnapshotAndSave(existing, snapshot));
-        }
-    }
-
-    private void findAndApply(Product snapshot) {
-        repository.findByMallIdAndProductNo(snapshot.getMallId(), snapshot.getProductNo())
-                .ifPresentOrElse(
-                        existing -> applySnapshotAndSave(existing, snapshot),
-                        () -> repository.save(snapshot)
-                );
+        ConcurrentUpsert.apply(
+                "Product",
+                snapshot.getMallId() + "/" + snapshot.getProductNo(),
+                () -> repository.findByMallIdAndProductNo(snapshot.getMallId(), snapshot.getProductNo()),
+                existing -> applySnapshotAndSave(existing, snapshot),
+                () -> repository.save(snapshot)
+        );
     }
 
     private void applySnapshotAndSave(Product existing, Product snapshot) {

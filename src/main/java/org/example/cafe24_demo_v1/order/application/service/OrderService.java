@@ -9,10 +9,10 @@ import org.example.cafe24_demo_v1.monitoring.domain.model.SyncTarget;
 import org.example.cafe24_demo_v1.order.domain.model.Order;
 import org.example.cafe24_demo_v1.order.domain.repository.OrderRepository;
 import org.example.cafe24_demo_v1.order.domain.service.Cafe24OrderPort;
+import org.example.cafe24_demo_v1.shared.application.ConcurrentUpsert;
+import org.example.cafe24_demo_v1.shared.application.PagedSyncRunner;
 import org.example.cafe24_demo_v1.shared.application.SyncFailureRecorder;
 import org.example.cafe24_demo_v1.shared.application.SyncResult;
-import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -97,53 +97,19 @@ public class OrderService {
      * 자연스럽게 보완하므로, 여기서 예외를 다시 던져 스케줄러까지 전파시키지 않는다.
      */
     private SyncResult syncPages(String mallId, BiFunction<Integer, Integer, List<Order>> pageFetcher) {
-        int offset = 0;
-        int processedCount = 0;
-        int failedCount = 0;
-        List<Order> page;
-        while (true) {
-            try {
-                page = pageFetcher.apply(offset, SYNC_PAGE_SIZE);
-            } catch (Cafe24ApiException e) {
-                log.error("Order sync Cafe24 API 호출 실패, 이번 실행 중단: mallId={}, offset={}", mallId, offset, e);
-                return new SyncResult(processedCount, failedCount, 1, e.getMessage());
-            }
-            for (Order snapshot : page) {
-                try {
-                    upsert(snapshot);
-                    processedCount++;
-                } catch (Exception e) {
-                    log.error("Order sync item failed, continuing: mallId={}, orderId={}",
-                            mallId, snapshot.getOrderId(), e);
-                    failedCount++;
-                }
-            }
-            offset += SYNC_PAGE_SIZE;
-            if (page.size() < SYNC_PAGE_SIZE) {
-                break;
-            }
-        }
-
-        return new SyncResult(processedCount, failedCount, 0, null);
+        return PagedSyncRunner.run(
+                "Order", mallId, SYNC_PAGE_SIZE, pageFetcher, this::upsert, Order::getOrderId
+        );
     }
 
     private void upsert(Order snapshot) {
-        try {
-            findAndApply(snapshot);
-        } catch (DataIntegrityViolationException e) {
-            log.info("Order insert conflict, retrying as update: mallId={}, orderId={}",
-                    snapshot.getMallId(), snapshot.getOrderId());
-            repository.findByMallIdAndOrderId(snapshot.getMallId(), snapshot.getOrderId())
-                    .ifPresent(existing -> applySnapshotAndSave(existing, snapshot));
-        }
-    }
-
-    private void findAndApply(Order snapshot) {
-        repository.findByMallIdAndOrderId(snapshot.getMallId(), snapshot.getOrderId())
-                .ifPresentOrElse(
-                        existing -> applySnapshotAndSave(existing, snapshot),
-                        () -> repository.save(snapshot)
-                );
+        ConcurrentUpsert.apply(
+                "Order",
+                snapshot.getMallId() + "/" + snapshot.getOrderId(),
+                () -> repository.findByMallIdAndOrderId(snapshot.getMallId(), snapshot.getOrderId()),
+                existing -> applySnapshotAndSave(existing, snapshot),
+                () -> repository.save(snapshot)
+        );
     }
 
     private void applySnapshotAndSave(Order existing, Order snapshot) {

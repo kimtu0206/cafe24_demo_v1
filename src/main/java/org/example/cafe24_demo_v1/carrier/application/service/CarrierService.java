@@ -10,13 +10,11 @@ import org.example.cafe24_demo_v1.carrier.domain.repository.CarrierRepository;
 import org.example.cafe24_demo_v1.carrier.domain.service.Cafe24CarrierPort;
 import org.example.cafe24_demo_v1.monitoring.application.service.SyncMetricsService;
 import org.example.cafe24_demo_v1.monitoring.domain.model.SyncTarget;
+import org.example.cafe24_demo_v1.shared.application.ConcurrentUpsert;
+import org.example.cafe24_demo_v1.shared.application.PagedSyncRunner;
 import org.example.cafe24_demo_v1.shared.application.SyncFailureRecorder;
 import org.example.cafe24_demo_v1.shared.application.SyncResult;
-import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 /**
  * 배송사(Carrier) 관련 유즈케이스를 조율하는 애플리케이션 서비스.
@@ -68,34 +66,12 @@ public class CarrierService {
      * 실행만 안전하게 종료한다 — 누락된 나머지는 다음 스케줄 실행이 보완한다.
      */
     private SyncResult syncPages(String mallId, TokenCredential credential) {
-        int offset = 0;
-        int processedCount = 0;
-        int failedCount = 0;
-        List<Carrier> page;
-        while (true) {
-            try {
-                page = cafe24CarrierPort.getCarriers(mallId, offset, SYNC_PAGE_SIZE, credential);
-            } catch (Cafe24ApiException e) {
-                log.error("Carrier sync Cafe24 API 호출 실패, 이번 실행 중단: mallId={}, offset={}", mallId, offset, e);
-                return new SyncResult(processedCount, failedCount, 1, e.getMessage());
-            }
-            for (Carrier snapshot : page) {
-                try {
-                    upsert(snapshot);
-                    processedCount++;
-                } catch (Exception e) {
-                    log.error("Carrier sync 중 1건 실패, 다음 건 계속 진행: mallId={}, shippingCarrierCode={}",
-                            mallId, snapshot.getShippingCarrierCode(), e);
-                    failedCount++;
-                }
-            }
-            offset += SYNC_PAGE_SIZE;
-            if (page.size() < SYNC_PAGE_SIZE) {
-                break;
-            }
-        }
-
-        return new SyncResult(processedCount, failedCount, 0, null);
+        return PagedSyncRunner.run(
+                "Carrier", mallId, SYNC_PAGE_SIZE,
+                (offset, limit) -> cafe24CarrierPort.getCarriers(mallId, offset, limit, credential),
+                this::upsert,
+                Carrier::getShippingCarrierCode
+        );
     }
 
     /**
@@ -127,32 +103,15 @@ public class CarrierService {
         return created;
     }
 
-    /**
-     * Cafe24 스냅샷을 로컬 DB에 반영한다. 이미 있으면 갱신, 없으면 신규 저장(Upsert).
-     *
-     * (mall_id, shipping_carrier_code) unique 제약 때문에, 같은 배송사를 동시에 반영하는 다른
-     * 경로와 경쟁하면 INSERT가 DataIntegrityViolationException으로 실패할 수 있다. 이 경우 다른
-     * 트랜잭션이 먼저 넣은 행을 재조회해 갱신으로 폴백한다(Order.upsert와 동일한 패턴). 이 메서드의
-     * 유일한 호출부인 syncFromCafe24는 @Transactional이 없어 save() 호출마다 독립된 트랜잭션으로
-     * 즉시 flush되므로 이 폴백이 안전하게 동작한다.
-     */
+    /** Cafe24 스냅샷을 로컬 DB에 반영한다. 이미 있으면 갱신, 없으면 신규 저장(Upsert). */
     private void upsert(Carrier snapshot) {
-        try {
-            findAndApply(snapshot);
-        } catch (DataIntegrityViolationException e) {
-            log.info("Carrier sync 중 동시 삽입 경쟁으로 충돌, 재조회 후 갱신으로 폴백: mallId={}, shippingCarrierCode={}",
-                    snapshot.getMallId(), snapshot.getShippingCarrierCode());
-            repository.findByMallIdAndShippingCarrierCode(snapshot.getMallId(), snapshot.getShippingCarrierCode())
-                    .ifPresent(existing -> applySnapshotAndSave(existing, snapshot));
-        }
-    }
-
-    private void findAndApply(Carrier snapshot) {
-        repository.findByMallIdAndShippingCarrierCode(snapshot.getMallId(), snapshot.getShippingCarrierCode())
-                .ifPresentOrElse(
-                        existing -> applySnapshotAndSave(existing, snapshot),
-                        () -> repository.save(snapshot)
-                );
+        ConcurrentUpsert.apply(
+                "Carrier",
+                snapshot.getMallId() + "/" + snapshot.getShippingCarrierCode(),
+                () -> repository.findByMallIdAndShippingCarrierCode(snapshot.getMallId(), snapshot.getShippingCarrierCode()),
+                existing -> applySnapshotAndSave(existing, snapshot),
+                () -> repository.save(snapshot)
+        );
     }
 
     private void applySnapshotAndSave(Carrier existing, Carrier snapshot) {

@@ -9,7 +9,7 @@ import org.example.cafe24_demo_v1.benefit.application.command.UpdateBenefitComma
 import org.example.cafe24_demo_v1.benefit.domain.model.Benefit;
 import org.example.cafe24_demo_v1.benefit.domain.repository.BenefitRepository;
 import org.example.cafe24_demo_v1.benefit.domain.service.Cafe24BenefitPort;
-import org.springframework.dao.DataIntegrityViolationException;
+import org.example.cafe24_demo_v1.shared.application.ConcurrentUpsert;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -77,27 +77,15 @@ public class BenefitService {
     }
 
     private void upsert(Benefit snapshot) {
-        try {
-            findAndApply(snapshot);
-        } catch (DataIntegrityViolationException e) {
-            log.info("Benefit 동시 삽입 경쟁으로 충돌, 재조회 후 갱신으로 폴백: mallId={}, benefitNo={}",
-                    snapshot.getMallId(), snapshot.getBenefitNo());
-            benefitRepository.findByMallIdAndBenefitNo(snapshot.getMallId(), snapshot.getBenefitNo())
-                    .ifPresent(existing -> {
-                        snapshot.setId(existing.getId());
-                        benefitRepository.save(snapshot);
-                    });
-        }
-    }
-
-    private void findAndApply(Benefit snapshot) {
-        benefitRepository.findByMallIdAndBenefitNo(snapshot.getMallId(), snapshot.getBenefitNo())
-                .ifPresentOrElse(
-                        existing -> {
-                            snapshot.setId(existing.getId());
-                            benefitRepository.save(snapshot);
-                        },
-                        () -> benefitRepository.save(snapshot)
-                );
+        ConcurrentUpsert.apply(
+                "Benefit",
+                snapshot.getMallId() + "/" + snapshot.getBenefitNo(),
+                () -> benefitRepository.findByMallIdAndBenefitNo(snapshot.getMallId(), snapshot.getBenefitNo()),
+                existing -> {
+                    snapshot.setId(existing.getId());
+                    benefitRepository.save(snapshot);
+                },
+                () -> benefitRepository.save(snapshot)
+        );
     }
 }
