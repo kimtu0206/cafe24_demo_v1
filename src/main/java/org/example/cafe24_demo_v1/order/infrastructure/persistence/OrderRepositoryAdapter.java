@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.cafe24_demo_v1.order.domain.model.Order;
 import org.example.cafe24_demo_v1.order.domain.model.OrderItem;
 import org.example.cafe24_demo_v1.order.domain.model.OrderReceiver;
+import org.example.cafe24_demo_v1.order.domain.repository.OrderBuyerRepository;
 import org.example.cafe24_demo_v1.order.domain.repository.OrderItemRepository;
 import org.example.cafe24_demo_v1.order.domain.repository.OrderReceiverRepository;
 import org.example.cafe24_demo_v1.order.domain.repository.OrderRepository;
@@ -23,6 +24,8 @@ public class OrderRepositoryAdapter implements OrderRepository {
     private final OrderItemMapper orderItemMapper;
     private final OrderReceiverRepository orderReceiverRepository;
     private final OrderReceiverMapper orderReceiverMapper;
+    private final OrderBuyerRepository orderBuyerRepository;
+    private final OrderBuyerMapper orderBuyerMapper;
 
     @Override
     public Optional<Order> findByMallIdAndOrderId(String mallId, String orderId) {
@@ -37,6 +40,7 @@ public class OrderRepositoryAdapter implements OrderRepository {
         order.setId(saved.getId());
         syncItems(order, saved.getId());
         syncReceivers(order, saved.getId());
+        syncBuyer(order, saved.getId());
     }
 
     private void syncItems(Order order, Long orderFkId) {
@@ -57,5 +61,15 @@ public class OrderRepositoryAdapter implements OrderRepository {
         orderReceiverRepository.deleteByMallIdAndCafe24OrderId(order.getMallId(), order.getOrderId());
         List<OrderReceiver> receivers = orderReceiverMapper.fromReceiversJson(orderFkId, order.getMallId(), order.getOrderId(), receiversJson);
         orderReceiverRepository.saveAll(receivers);
+    }
+
+    private void syncBuyer(Order order, Long orderFkId) {
+        String buyerJson = order.getBuyer();
+        if (buyerJson == null) {
+            return;
+        }
+        orderBuyerRepository.deleteByMallIdAndCafe24OrderId(order.getMallId(), order.getOrderId());
+        orderBuyerMapper.fromBuyerJson(orderFkId, order.getMallId(), order.getOrderId(), buyerJson)
+                .ifPresent(orderBuyerRepository::save);
     }
 }
