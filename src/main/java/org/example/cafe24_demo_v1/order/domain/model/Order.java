@@ -19,6 +19,7 @@ public class Order {
     private String mallId;            // 주문이 발생한 쇼핑몰 ID
     private String orderId;           // Cafe24 주문번호 (예: 20200717-0029236)
     private String orderStatus;
+    private OrderType orderType;      // 회원 주문(MEMBER) / 비회원 주문(GUEST)
     private String memberId;
     private String buyerName;
     private String buyerEmail;
@@ -58,6 +59,7 @@ public class Order {
         order.mallId = mallId;
         order.orderId = orderId;
         order.orderStatus = orderStatus;
+        order.orderType = deriveOrderType(memberId);
         order.memberId = memberId;
         order.buyerName = buyerName;
         order.buyerEmail = buyerEmail;
@@ -77,6 +79,7 @@ public class Order {
             String mallId,
             String orderId,
             String orderStatus,
+            OrderType orderType,
             String memberId,
             String buyerName,
             String buyerEmail,
@@ -93,6 +96,7 @@ public class Order {
         order.mallId = mallId;
         order.orderId = orderId;
         order.orderStatus = orderStatus;
+        order.orderType = orderType;
         order.memberId = memberId;
         order.buyerName = buyerName;
         order.buyerEmail = buyerEmail;
@@ -122,6 +126,7 @@ public class Order {
             OrderEmbeddedResources embeds
     ) {
         this.orderStatus = orderStatus;
+        this.orderType = deriveOrderType(memberId);
         this.memberId = memberId;
         this.buyerName = buyerName;
         this.buyerEmail = buyerEmail;
@@ -149,4 +154,8 @@ public class Order {
 
     // DB 저장 후 생성된 PK를 주입할 때 사용
     public void setId(Long id) { this.id = id; }
+
+    private static OrderType deriveOrderType(String memberId) {
+        return (memberId != null && !memberId.isBlank()) ? OrderType.MEMBER : OrderType.GUEST;
+    }
 }

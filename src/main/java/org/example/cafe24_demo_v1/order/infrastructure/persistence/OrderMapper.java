@@ -2,6 +2,7 @@ package org.example.cafe24_demo_v1.order.infrastructure.persistence;
 
 import org.example.cafe24_demo_v1.order.domain.model.Order;
 import org.example.cafe24_demo_v1.order.domain.model.OrderEmbeddedResources;
+import org.example.cafe24_demo_v1.order.domain.model.OrderType;
 import org.springframework.stereotype.Component;
 
 /**
@@ -17,6 +18,7 @@ class OrderMapper {
                 entity.getMallId(),
                 entity.getOrderId(),
                 entity.getOrderStatus(),
+                parseOrderType(entity),
                 entity.getMemberId(),
                 entity.getBuyerName(),
                 entity.getBuyerEmail(),
@@ -44,6 +46,7 @@ class OrderMapper {
         entity.setMallId(domain.getMallId());
         entity.setOrderId(domain.getOrderId());
         entity.setOrderStatus(domain.getOrderStatus());
+        entity.setOrderType(domain.getOrderType() != null ? domain.getOrderType().name() : null);
         entity.setMemberId(domain.getMemberId());
         entity.setBuyerName(domain.getBuyerName());
         entity.setBuyerEmail(domain.getBuyerEmail());
@@ -60,5 +63,17 @@ class OrderMapper {
         entity.setCreatedAt(domain.getCreatedAt());
         entity.setUpdatedAt(domain.getUpdatedAt());
         return entity;
+    }
+
+    /**
+     * DB의 order_type 컬럼 값을 OrderType으로 변환한다.
+     * 컬럼이 NULL인 레거시 행은 member_id 유무로 추론해 폴백 처리한다.
+     */
+    private OrderType parseOrderType(OrderEntity entity) {
+        if (entity.getOrderType() != null) {
+            return OrderType.valueOf(entity.getOrderType());
+        }
+        String memberId = entity.getMemberId();
+        return (memberId != null && !memberId.isBlank()) ? OrderType.MEMBER : OrderType.GUEST;
     }
 }

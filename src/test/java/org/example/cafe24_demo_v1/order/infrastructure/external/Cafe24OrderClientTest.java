@@ -3,6 +3,7 @@ package org.example.cafe24_demo_v1.order.infrastructure.external;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.cafe24_demo_v1.authorization.domain.model.TokenCredential;
 import org.example.cafe24_demo_v1.order.domain.model.Order;
+import org.example.cafe24_demo_v1.order.domain.model.OrderType;
 import org.example.cafe24_demo_v1.shared.config.Cafe24Properties;
 import org.example.cafe24_demo_v1.shared.exception.Cafe24ApiException;
 import org.junit.jupiter.api.BeforeEach;
@@ -103,6 +104,7 @@ class Cafe24OrderClientTest {
         assertThat(order.getMallId()).isEqualTo("mymall");
         assertThat(order.getOrderId()).isEqualTo("20170710-0000013");
         assertThat(order.getOrderStatus()).isNull(); // 응답에 order_status가 없어 비즈니스 규칙 정해지기 전까지 null
+        assertThat(order.getOrderType()).isEqualTo(OrderType.MEMBER);
         assertThat(order.getBuyerName()).isNull();   // 개인정보 embed 미적용으로 null
         assertThat(order.getBuyerEmail()).isEqualTo("sample@sample.com");
         assertThat(order.getTotalAmount()).isEqualTo(new BigDecimal("30000.00"));
@@ -151,6 +153,31 @@ class Cafe24OrderClientTest {
         assertThat(order.getCancellation()).contains("cancel_no");
         assertThat(order.getExchange()).contains("exchange_no");
         assertThat(order.getRawJson()).contains("샘플 상품", "receiver_phone", "return_no");
+        mockServer.verify();
+    }
+
+    @Test
+    void member_id가_없으면_GUEST로_분류된다() {
+        mockServer.expect(requestTo(startsWith("https://mymall.cafe24api.com/api/v2/admin/orders?")))
+                .andExpect(method(GET))
+                .andRespond(withSuccess("""
+                        {"orders": [
+                          {
+                            "order_id": "20170710-0000099",
+                            "member_email": "",
+                            "payment_amount": "15000.00",
+                            "payment_method": ["card"],
+                            "order_date": "2018-07-04T11:21:35+09:00"
+                          }
+                        ]}
+                        """, MediaType.APPLICATION_JSON));
+
+        List<Order> orders = client.getOrders("mymall", LocalDateTime.now().minusMinutes(10), 0, 100, credential);
+
+        assertThat(orders).hasSize(1);
+        Order order = orders.get(0);
+        assertThat(order.getOrderType()).isEqualTo(OrderType.GUEST);
+        assertThat(order.getMemberId()).isNull();
         mockServer.verify();
     }
 

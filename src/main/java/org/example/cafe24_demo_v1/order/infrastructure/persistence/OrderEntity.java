@@ -34,6 +34,9 @@ class OrderEntity {
     @Column(name = "order_status")
     private String orderStatus;
 
+    @Column(name = "order_type", length = 10)
+    private String orderType;   // MEMBER(회원 주문) / GUEST(비회원 주문)
+
     @Column(name = "member_id")
     private String memberId;
 

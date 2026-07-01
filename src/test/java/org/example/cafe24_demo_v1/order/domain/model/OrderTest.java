@@ -28,6 +28,7 @@ class OrderTest {
         assertThat(order.getBuyerEmail()).isEqualTo("gdhong@cafe24corp.com");
         assertThat(order.getTotalAmount()).isEqualTo(new BigDecimal("24680.00"));
         assertThat(order.getPaymentMethod()).isEqualTo("mileage");
+        assertThat(order.getOrderType()).isEqualTo(OrderType.MEMBER);
         assertThat(order.getOrderedAt()).isEqualTo(orderedAt);
         assertThat(order.getRawJson()).contains("20200717-0029236");
         assertThat(order.getItems()).isEqualTo("[{\"item_no\":1}]");
@@ -60,6 +61,44 @@ class OrderTest {
         assertThat(order.getOrderedAt()).isEqualTo(LocalDateTime.of(2024, 1, 2, 0, 0));
         assertThat(order.getRawJson()).isEqualTo("{\"changed\":true}");
         assertThat(order.getReturnInfo()).isEqualTo("{\"return_no\":1}");
+        assertThat(order.getOrderType()).isEqualTo(OrderType.MEMBER);
+    }
+
+    @Test
+    void memberId가_null이면_GUEST로_분류된다() {
+        Order order = Order.register(
+                "mymall", "20200717-9999999", "N10", null, null, null,
+                null, null, LocalDateTime.now(), "{}", OrderEmbeddedResources.empty()
+        );
+
+        assertThat(order.getOrderType()).isEqualTo(OrderType.GUEST);
+        assertThat(order.getMemberId()).isNull();
+    }
+
+    @Test
+    void memberId가_빈문자열이면_GUEST로_분류된다() {
+        Order order = Order.register(
+                "mymall", "20200717-9999999", "N10", "", null, null,
+                null, null, LocalDateTime.now(), "{}", OrderEmbeddedResources.empty()
+        );
+
+        assertThat(order.getOrderType()).isEqualTo(OrderType.GUEST);
+    }
+
+    @Test
+    void applySnapshot으로_비회원_갱신_시_GUEST로_재분류된다() {
+        Order order = Order.register(
+                "mymall", "20200717-0029236", "N10", "gdhong", "기존 이름", "old@cafe24corp.com",
+                new BigDecimal("1000"), "card", LocalDateTime.now(), "{}", OrderEmbeddedResources.empty()
+        );
+
+        order.applySnapshot(
+                "N40", null, null, null,
+                new BigDecimal("1000"), "card", LocalDateTime.now(), "{}",
+                OrderEmbeddedResources.empty()
+        );
+
+        assertThat(order.getOrderType()).isEqualTo(OrderType.GUEST);
     }
 
     @Test
