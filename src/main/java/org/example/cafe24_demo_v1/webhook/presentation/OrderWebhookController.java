@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
+import org.example.cafe24_demo_v1.webhook.domain.event.OrderCancelledEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.OrderCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.infrastructure.Cafe24WebhookVerifier;
 import org.springframework.context.ApplicationEventPublisher;
@@ -51,6 +52,21 @@ public class OrderWebhookController extends AbstractCafe24WebhookController {
             log.info("Webhook received: eventNo={}, orderId={}", payload.eventNo(), payload.orderId());
             eventPublisher.publishEvent(
                     new OrderCreatedEvent(payload.eventNo(), payload.mallId(), payload.orderId(), resource.toString())
+            );
+            return ResponseEntity.ok().build();
+        });
+    }
+
+    @Operation(summary = "주문 취소 상태 변경 Webhook 수신", description = "Cafe24 주문 취소 상태 변경 이벤트를 수신하고 원본 payload만 저장합니다. 실제 주문 반영은 OrderWebhookEventProcessor가 비동기로 처리합니다.")
+    @PostMapping("/cancelled")
+    public ResponseEntity<Void> cancelled(@Parameter(hidden = true) @RequestHeader Map<String, String> headers, @RequestBody OrderWebhookPayload payload) {
+        JsonNode resource = payload.resource();
+        Object resourceOrNull = (resource == null || resource.isNull()) ? null : resource;
+
+        return reject(headers, payload.eventNo(), resourceOrNull).or(() -> requireOrderId(payload)).orElseGet(() -> {
+            log.info("Webhook received: eventNo={}, orderId={}", payload.eventNo(), payload.orderId());
+            eventPublisher.publishEvent(
+                    new OrderCancelledEvent(payload.eventNo(), payload.mallId(), payload.orderId(), resource.toString())
             );
             return ResponseEntity.ok().build();
         });

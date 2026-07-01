@@ -26,6 +26,8 @@ class OrderMapper {
                 entity.getPaymentMethod(),
                 entity.getOrderedAt(),
                 entity.getRawJson(),
+                entity.getCanceled(),
+                entity.getCancelDate(),
                 new OrderEmbeddedResources(
                         entity.getItems(),
                         entity.getReceivers(),
@@ -54,6 +56,8 @@ class OrderMapper {
         entity.setPaymentMethod(domain.getPaymentMethod());
         entity.setOrderedAt(domain.getOrderedAt());
         entity.setRawJson(domain.getRawJson());
+        entity.setCanceled(domain.getCanceled());
+        entity.setCancelDate(domain.getCancelDate());
         entity.setItems(domain.getItems());
         entity.setReceivers(domain.getReceivers());
         entity.setBuyer(domain.getBuyer());

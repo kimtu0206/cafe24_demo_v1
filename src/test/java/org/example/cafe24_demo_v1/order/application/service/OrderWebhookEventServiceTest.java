@@ -46,7 +46,7 @@ class OrderWebhookEventServiceTest {
     void saveRaw는_신규_이벤트면_저장한다() {
         given(repository.exists(90023, "mymall", "1")).willReturn(false);
 
-        service.saveRaw("mymall", 90023, "1", "{}");
+        service.saveRaw("mymall", 90023, "ORDER_CREATED", "1", "{}");
 
         verify(repository).save(any(OrderWebhookEvent.class));
     }
@@ -55,7 +55,7 @@ class OrderWebhookEventServiceTest {
     void saveRaw는_이미_처리한_이벤트면_무시한다() {
         given(repository.exists(90023, "mymall", "1")).willReturn(true);
 
-        service.saveRaw("mymall", 90023, "1", "{}");
+        service.saveRaw("mymall", 90023, "ORDER_CREATED", "1", "{}");
 
         verify(repository, never()).save(any());
     }

@@ -252,7 +252,7 @@ class OrderServiceTest {
     private Order order(String mallId, String orderId, String orderStatus, String totalAmount) {
         return Order.register(
                 mallId, orderId, orderStatus, "member", "buyer", "buyer@test.com",
-                new BigDecimal(totalAmount), "card", LocalDateTime.now(), "{}", OrderEmbeddedResources.empty()
+                new BigDecimal(totalAmount), "card", LocalDateTime.now(), "{}", null, null, OrderEmbeddedResources.empty()
         );
     }
 }

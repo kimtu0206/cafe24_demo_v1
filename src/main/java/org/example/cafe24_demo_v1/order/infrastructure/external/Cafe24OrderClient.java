@@ -79,14 +79,28 @@ public class Cafe24OrderClient implements Cafe24OrderPort {
 
     @Override
     public Optional<Order> getOrder(String mallId, String orderId, TokenCredential credential) {
-        // 주문 상세 단건 엔드포인트의 응답 구조가 불확실해, 이미 검증된 목록 조회를 order_id로 필터링해서 재사용한다.
-        String url = UriComponentsBuilder.fromUriString(baseUrl(mallId) + "/orders")
-                .queryParam("order_id", orderId)
+        String url = UriComponentsBuilder.fromUriString(baseUrl(mallId) + "/orders/{orderId}")
                 .queryParam("embed", EMBED_RESOURCES)
+                .buildAndExpand(orderId)
                 .toUriString();
+        try {
+            String body = exchange(mallId, url, new HttpEntity<>(headers(credential)));
+            return parseSingleOrder(mallId, body);
+        } catch (Cafe24ApiException e) {
+            if (e.getStatusCode() != null && e.getStatusCode().value() == 404) {
+                return Optional.empty();
+            }
+            throw e;
+        }
+    }
 
-        String body = exchange(mallId, url, new HttpEntity<>(headers(credential)));
-        return parseOrders(mallId, body).stream().findFirst();
+    private Optional<Order> parseSingleOrder(String mallId, String body) {
+        JsonNode root = readTree(body);
+        JsonNode node = root.path("order");
+        if (node.isMissingNode() || node.isNull()) {
+            return Optional.empty();
+        }
+        return Optional.of(toDomain(mallId, node));
     }
 
     private List<Order> parseOrders(String mallId, String body) {
@@ -158,6 +172,8 @@ public class Cafe24OrderClient implements Cafe24OrderPort {
                 joinIfArray(node, "payment_method"),
                 dateTime(node, "order_date"),
                 node.toString(),
+                text(node, "canceled"),
+                dateTime(node, "cancel_date"),
                 extractEmbeds(node)
         );
     }

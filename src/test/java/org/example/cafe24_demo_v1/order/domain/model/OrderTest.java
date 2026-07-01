@@ -17,7 +17,7 @@ class OrderTest {
         );
         Order order = Order.register(
                 "mymall", "20200717-0029236", "N40", "gdhong", "Jessica Hong", "gdhong@cafe24corp.com",
-                new BigDecimal("24680.00"), "mileage", orderedAt, "{\"order_id\":\"20200717-0029236\"}", embeds
+                new BigDecimal("24680.00"), "mileage", orderedAt, "{\"order_id\":\"20200717-0029236\"}", null, null, embeds
         );
 
         assertThat(order.getMallId()).isEqualTo("mymall");
@@ -44,12 +44,13 @@ class OrderTest {
     void applySnapshot으로_주문_정보를_갱신할_수_있다() {
         Order order = Order.register(
                 "mymall", "20200717-0029236", "N10", "gdhong", "기존 이름", "old@cafe24corp.com",
-                new BigDecimal("1000"), "card", LocalDateTime.of(2024, 1, 1, 0, 0), "{}", OrderEmbeddedResources.empty()
+                new BigDecimal("1000"), "card", LocalDateTime.of(2024, 1, 1, 0, 0), "{}", null, null, OrderEmbeddedResources.empty()
         );
 
         order.applySnapshot(
                 "N40", "gdhong", "변경된 이름", "new@cafe24corp.com",
                 new BigDecimal("2000"), "mileage", LocalDateTime.of(2024, 1, 2, 0, 0), "{\"changed\":true}",
+                null, null,
                 new OrderEmbeddedResources(null, null, null, "{\"return_no\":1}", null, null)
         );
 
@@ -68,7 +69,7 @@ class OrderTest {
     void memberId가_null이면_GUEST로_분류된다() {
         Order order = Order.register(
                 "mymall", "20200717-9999999", "N10", null, null, null,
-                null, null, LocalDateTime.now(), "{}", OrderEmbeddedResources.empty()
+                null, null, LocalDateTime.now(), "{}", null, null, OrderEmbeddedResources.empty()
         );
 
         assertThat(order.getOrderType()).isEqualTo(OrderType.GUEST);
@@ -79,7 +80,7 @@ class OrderTest {
     void memberId가_빈문자열이면_GUEST로_분류된다() {
         Order order = Order.register(
                 "mymall", "20200717-9999999", "N10", "", null, null,
-                null, null, LocalDateTime.now(), "{}", OrderEmbeddedResources.empty()
+                null, null, LocalDateTime.now(), "{}", null, null, OrderEmbeddedResources.empty()
         );
 
         assertThat(order.getOrderType()).isEqualTo(OrderType.GUEST);
@@ -89,12 +90,13 @@ class OrderTest {
     void applySnapshot으로_비회원_갱신_시_GUEST로_재분류된다() {
         Order order = Order.register(
                 "mymall", "20200717-0029236", "N10", "gdhong", "기존 이름", "old@cafe24corp.com",
-                new BigDecimal("1000"), "card", LocalDateTime.now(), "{}", OrderEmbeddedResources.empty()
+                new BigDecimal("1000"), "card", LocalDateTime.now(), "{}", null, null, OrderEmbeddedResources.empty()
         );
 
         order.applySnapshot(
                 "N40", null, null, null,
                 new BigDecimal("1000"), "card", LocalDateTime.now(), "{}",
+                null, null,
                 OrderEmbeddedResources.empty()
         );
 
@@ -108,7 +110,7 @@ class OrderTest {
         );
         Order order = Order.register(
                 "mymall", "20200717-0029236", "N40", "gdhong", "Jessica Hong", "gdhong@cafe24corp.com",
-                new BigDecimal("1000"), "card", LocalDateTime.now(), "{}", embeds
+                new BigDecimal("1000"), "card", LocalDateTime.now(), "{}", null, null, embeds
         );
 
         OrderEmbeddedResources result = order.getEmbeds();

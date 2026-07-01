@@ -184,7 +184,7 @@ class WebhookEventServiceTest {
     void 주문_생성_이벤트는_원본_저장만_위임한다() {
         webhookEventService.onOrderCreated(new OrderCreatedEvent(90023, "mymall", "1", "{}"));
 
-        verify(orderWebhookEventService).saveRaw("mymall", 90023, "1", "{}");
+        verify(orderWebhookEventService).saveRaw("mymall", 90023, "ORDER_CREATED", "1", "{}");
     }
 
     @Test

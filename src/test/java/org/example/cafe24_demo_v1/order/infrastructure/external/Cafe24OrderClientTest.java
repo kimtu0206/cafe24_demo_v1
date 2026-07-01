@@ -228,21 +228,72 @@ class Cafe24OrderClientTest {
     }
 
     @Test
-    void getOrder는_order_id로_필터링해서_단건을_조회한다() {
-        mockServer.expect(requestTo("https://mymall.cafe24api.com/api/v2/admin/orders?order_id=20170710-0000013"
-                        + "&embed=items,receivers,buyer,return,cancellation,exchange"))
-                .andExpect(method(GET))
+    void getOrders는_canceled와_cancel_date를_도메인_모델에_매핑한다() {
+        mockServer.expect(requestTo(startsWith("https://mymall.cafe24api.com/api/v2/admin/orders?")))
                 .andRespond(withSuccess("""
                         {"orders": [
                           {
+                            "order_id": "20260701-0000033",
+                            "member_id": "sampleid",
+                            "member_email": "sample@sample.com",
+                            "payment_amount": "0.00",
+                            "payment_method": ["cash"],
+                            "order_date": "2026-07-01T13:29:17+09:00",
+                            "canceled": "T",
+                            "cancel_date": "2026-07-01T13:30:15+09:00"
+                          }
+                        ]}
+                        """, MediaType.APPLICATION_JSON));
+
+        List<Order> orders = client.getOrders("mymall", LocalDateTime.now().minusMinutes(10), 0, 100, credential);
+
+        assertThat(orders).hasSize(1);
+        Order order = orders.get(0);
+        assertThat(order.getCanceled()).isEqualTo("T");
+        assertThat(order.getCancelDate()).isEqualTo(OffsetDateTime.parse("2026-07-01T13:30:15+09:00").toLocalDateTime());
+        mockServer.verify();
+    }
+
+    @Test
+    void getOrders는_취소되지_않은_주문의_cancel_date를_null로_둔다() {
+        mockServer.expect(requestTo(startsWith("https://mymall.cafe24api.com/api/v2/admin/orders?")))
+                .andRespond(withSuccess("""
+                        {"orders": [
+                          {
+                            "order_id": "20260701-0000001",
+                            "member_email": "sample@sample.com",
+                            "payment_amount": "30000.00",
+                            "payment_method": ["card"],
+                            "order_date": "2026-07-01T10:00:00+09:00",
+                            "canceled": "F",
+                            "cancel_date": null
+                          }
+                        ]}
+                        """, MediaType.APPLICATION_JSON));
+
+        List<Order> orders = client.getOrders("mymall", LocalDateTime.now().minusMinutes(10), 0, 100, credential);
+
+        Order order = orders.get(0);
+        assertThat(order.getCanceled()).isEqualTo("F");
+        assertThat(order.getCancelDate()).isNull();
+        mockServer.verify();
+    }
+
+    @Test
+    void getOrder는_단건_엔드포인트로_주문을_조회한다() {
+        mockServer.expect(requestTo("https://mymall.cafe24api.com/api/v2/admin/orders/20170710-0000013"
+                        + "?embed=items,receivers,buyer,return,cancellation,exchange"))
+                .andExpect(method(GET))
+                .andRespond(withSuccess("""
+                        {"order": {
                             "order_id": "20170710-0000013",
                             "member_id": "sampleid",
                             "member_email": "sample@sample.com",
                             "payment_amount": "30000.00",
                             "payment_method": ["card"],
-                            "order_date": "2018-07-04T11:21:35+09:00"
-                          }
-                        ]}
+                            "order_date": "2018-07-04T11:21:35+09:00",
+                            "cancellation": [{"cancel_no": "1", "status": "F"}]
+                        }}
                         """, MediaType.APPLICATION_JSON));
 
         Optional<Order> order = client.getOrder("mymall", "20170710-0000013", credential);
@@ -250,13 +301,14 @@ class Cafe24OrderClientTest {
         assertThat(order).isPresent();
         assertThat(order.get().getOrderId()).isEqualTo("20170710-0000013");
         assertThat(order.get().getPaymentMethod()).isEqualTo("card");
+        assertThat(order.get().getCancellation()).contains("cancel_no");
     }
 
     @Test
-    void getOrder는_결과가_없으면_빈_Optional을_반환한다() {
-        mockServer.expect(requestTo("https://mymall.cafe24api.com/api/v2/admin/orders?order_id=missing"
-                        + "&embed=items,receivers,buyer,return,cancellation,exchange"))
-                .andRespond(withSuccess("{\"orders\": []}", MediaType.APPLICATION_JSON));
+    void getOrder는_404이면_빈_Optional을_반환한다() {
+        mockServer.expect(requestTo("https://mymall.cafe24api.com/api/v2/admin/orders/missing"
+                        + "?embed=items,receivers,buyer,return,cancellation,exchange"))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND).body("{\"error\": \"not found\"}"));
 
         Optional<Order> order = client.getOrder("mymall", "missing", credential);
 

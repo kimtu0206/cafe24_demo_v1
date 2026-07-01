@@ -16,6 +16,7 @@ import org.example.cafe24_demo_v1.webhook.domain.event.BenefitUpdatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.CarrierCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.CarrierDeletedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.CarrierUpdatedEvent;
+import org.example.cafe24_demo_v1.webhook.domain.event.OrderCancelledEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.OrderCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductCreatedEvent;
 import org.example.cafe24_demo_v1.webhook.domain.event.ProductDeletedEvent;
@@ -267,6 +268,17 @@ public class WebhookEventService {
     @EventListener
     public void onOrderCreated(OrderCreatedEvent event) {
         log.info("Order created: mallId={}, orderId={}", event.getMallId(), event.getOrderId());
-        orderWebhookEventService.saveRaw(event.getMallId(), event.getEventNo(), event.getOrderId(), event.getPayload());
+        orderWebhookEventService.saveRaw(event.getMallId(), event.getEventNo(), "ORDER_CREATED", event.getOrderId(), event.getPayload());
+    }
+
+    /**
+     * 주문 취소 상태 변경 이벤트 처리기.
+     * 주문 생성과 동일하게 원본 payload 저장만 위임하고 끝낸다.
+     * 실제 order 테이블(cancellation 컬럼 포함) 반영은 OrderWebhookEventProcessor가 비동기로 수행한다.
+     */
+    @EventListener
+    public void onOrderCancelled(OrderCancelledEvent event) {
+        log.info("Order cancelled: mallId={}, orderId={}", event.getMallId(), event.getOrderId());
+        orderWebhookEventService.saveRaw(event.getMallId(), event.getEventNo(), "ORDER_CANCELLED", event.getOrderId(), event.getPayload());
     }
 }

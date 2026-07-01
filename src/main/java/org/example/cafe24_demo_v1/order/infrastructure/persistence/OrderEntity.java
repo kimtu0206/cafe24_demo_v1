@@ -58,6 +58,12 @@ class OrderEntity {
     @Column(name = "order_raw_json", columnDefinition = "TEXT")
     private String rawJson;   // Cafe24 응답 원본(JSON) — 컬럼화하지 않은 나머지 정보 보존용
 
+    @Column(name = "canceled", length = 1)
+    private String canceled;   // 취소 여부 — Cafe24 "T"/"F"
+
+    @Column(name = "cancel_date")
+    private LocalDateTime cancelDate;   // 취소 일시 (취소되지 않은 경우 null)
+
     @Column(name = "items", columnDefinition = "TEXT")
     private String items;   // embed=items 응답 원본(JSON)
 

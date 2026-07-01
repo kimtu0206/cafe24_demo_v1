@@ -26,8 +26,6 @@ import java.util.NoSuchElementException;
 @RequiredArgsConstructor
 public class OrderWebhookEventService {
 
-    private static final String ORDER_CREATED_EVENT_TYPE = "ORDER_CREATED";
-
     private final OrderWebhookEventRepository repository;
     private final OrderService orderService;
     private final WorkerProperties workerProperties;
@@ -37,12 +35,12 @@ public class OrderWebhookEventService {
      * 최초 수신 시에만 저장한다. Cafe24 재조회나 order 테이블 반영은 하지 않는다.
      */
     @Transactional
-    public void saveRaw(String mallId, Integer eventNo, String orderId, String payload) {
+    public void saveRaw(String mallId, Integer eventNo, String eventType, String orderId, String payload) {
         if (repository.exists(eventNo, mallId, orderId)) {
             log.info("Duplicate order webhook ignored: eventNo={}, mallId={}, orderId={}", eventNo, mallId, orderId);
             return;
         }
-        repository.save(OrderWebhookEvent.receive(mallId, eventNo, ORDER_CREATED_EVENT_TYPE, orderId, null, payload));
+        repository.save(OrderWebhookEvent.receive(mallId, eventNo, eventType, orderId, null, payload));
     }
 
     /**

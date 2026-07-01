@@ -27,6 +27,8 @@ public class Order {
     private String paymentMethod;
     private LocalDateTime orderedAt;
     private String rawJson;           // Cafe24 응답 원본(JSON). 컬럼화하지 않은 나머지 정보를 보존한다.
+    private String canceled;          // 취소 여부 — Cafe24 "T"/"F"
+    private LocalDateTime cancelDate; // 취소 일시 (취소되지 않은 경우 null)
     private String items;             // embed=items 응답 원본(JSON)
     private String receivers;         // embed=receivers 응답 원본(JSON)
     private String buyer;             // embed=buyer 응답 원본(JSON)
@@ -50,6 +52,8 @@ public class Order {
             String paymentMethod,
             LocalDateTime orderedAt,
             String rawJson,
+            String canceled,
+            LocalDateTime cancelDate,
             OrderEmbeddedResources embeds
     ) {
         Objects.requireNonNull(mallId, "mallId must not be null");
@@ -67,6 +71,8 @@ public class Order {
         order.paymentMethod = paymentMethod;
         order.orderedAt = orderedAt;
         order.rawJson = rawJson;
+        order.canceled = canceled;
+        order.cancelDate = cancelDate;
         order.applyEmbeds(embeds);
         order.createdAt = LocalDateTime.now();
         order.updatedAt = LocalDateTime.now();
@@ -87,6 +93,8 @@ public class Order {
             String paymentMethod,
             LocalDateTime orderedAt,
             String rawJson,
+            String canceled,
+            LocalDateTime cancelDate,
             OrderEmbeddedResources embeds,
             LocalDateTime createdAt,
             LocalDateTime updatedAt
@@ -104,6 +112,8 @@ public class Order {
         order.paymentMethod = paymentMethod;
         order.orderedAt = orderedAt;
         order.rawJson = rawJson;
+        order.canceled = canceled;
+        order.cancelDate = cancelDate;
         order.applyEmbeds(embeds);
         order.createdAt = createdAt;
         order.updatedAt = updatedAt;
@@ -123,6 +133,8 @@ public class Order {
             String paymentMethod,
             LocalDateTime orderedAt,
             String rawJson,
+            String canceled,
+            LocalDateTime cancelDate,
             OrderEmbeddedResources embeds
     ) {
         this.orderStatus = orderStatus;
@@ -134,6 +146,8 @@ public class Order {
         this.paymentMethod = paymentMethod;
         this.orderedAt = orderedAt;
         this.rawJson = rawJson;
+        this.canceled = canceled;
+        this.cancelDate = cancelDate;
         applyEmbeds(embeds);
         this.updatedAt = LocalDateTime.now();
     }
