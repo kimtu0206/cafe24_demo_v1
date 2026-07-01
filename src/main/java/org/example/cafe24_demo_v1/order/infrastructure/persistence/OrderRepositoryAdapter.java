@@ -3,7 +3,9 @@ package org.example.cafe24_demo_v1.order.infrastructure.persistence;
 import lombok.RequiredArgsConstructor;
 import org.example.cafe24_demo_v1.order.domain.model.Order;
 import org.example.cafe24_demo_v1.order.domain.model.OrderItem;
+import org.example.cafe24_demo_v1.order.domain.model.OrderReceiver;
 import org.example.cafe24_demo_v1.order.domain.repository.OrderItemRepository;
+import org.example.cafe24_demo_v1.order.domain.repository.OrderReceiverRepository;
 import org.example.cafe24_demo_v1.order.domain.repository.OrderRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +21,8 @@ public class OrderRepositoryAdapter implements OrderRepository {
     private final OrderMapper mapper;
     private final OrderItemRepository orderItemRepository;
     private final OrderItemMapper orderItemMapper;
+    private final OrderReceiverRepository orderReceiverRepository;
+    private final OrderReceiverMapper orderReceiverMapper;
 
     @Override
     public Optional<Order> findByMallIdAndOrderId(String mallId, String orderId) {
@@ -32,6 +36,7 @@ public class OrderRepositoryAdapter implements OrderRepository {
         OrderEntity saved = jpaRepository.save(entity);
         order.setId(saved.getId());
         syncItems(order, saved.getId());
+        syncReceivers(order, saved.getId());
     }
 
     private void syncItems(Order order, Long orderFkId) {
@@ -42,5 +47,15 @@ public class OrderRepositoryAdapter implements OrderRepository {
         orderItemRepository.deleteByMallIdAndCafe24OrderId(order.getMallId(), order.getOrderId());
         List<OrderItem> items = orderItemMapper.fromItemsJson(orderFkId, order.getMallId(), order.getOrderId(), itemsJson);
         orderItemRepository.saveAll(items);
+    }
+
+    private void syncReceivers(Order order, Long orderFkId) {
+        String receiversJson = order.getReceivers();
+        if (receiversJson == null) {
+            return;
+        }
+        orderReceiverRepository.deleteByMallIdAndCafe24OrderId(order.getMallId(), order.getOrderId());
+        List<OrderReceiver> receivers = orderReceiverMapper.fromReceiversJson(orderFkId, order.getMallId(), order.getOrderId(), receiversJson);
+        orderReceiverRepository.saveAll(receivers);
     }
 }
