@@ -6,6 +6,7 @@ import org.example.cafe24_demo_v1.monitoring.application.service.SyncMetricsServ
 import org.example.cafe24_demo_v1.monitoring.domain.model.SyncTarget;
 import org.example.cafe24_demo_v1.order.domain.model.Order;
 import org.example.cafe24_demo_v1.order.domain.model.OrderEmbeddedResources;
+import org.example.cafe24_demo_v1.order.domain.model.OrderType;
 import org.example.cafe24_demo_v1.order.domain.repository.OrderRepository;
 import org.example.cafe24_demo_v1.order.domain.service.Cafe24OrderPort;
 import org.example.cafe24_demo_v1.shared.application.SyncFailureRecorder;
@@ -88,6 +89,21 @@ class OrderServiceTest {
     }
 
     @Test
+    void syncFromCafe24는_비회원_주문도_GUEST_타입으로_저장한다() {
+        LocalDateTime updatedSince = LocalDateTime.now().minusMinutes(10);
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+
+        Order guestSnapshot = guestOrder("mymall", "20200717-0029237", "N40", "2000");
+        given(cafe24OrderPort.getOrders("mymall", updatedSince, 0, 100, credential)).willReturn(List.of(guestSnapshot));
+        given(repository.findByMallIdAndOrderId("mymall", "20200717-0029237")).willReturn(Optional.empty());
+
+        orderService.syncFromCafe24("mymall", updatedSince);
+
+        assertThat(guestSnapshot.getOrderType()).isEqualTo(OrderType.GUEST);
+        verify(repository).save(guestSnapshot);
+    }
+
+    @Test
     void syncFromCafe24는_페이지가_가득_찰_때까지_반복_조회한다() {
         LocalDateTime updatedSince = LocalDateTime.now().minusMinutes(10);
         given(authorizationService.getValidCredential("mymall")).willReturn(credential);
@@ -131,6 +147,19 @@ class OrderServiceTest {
         orderService.upsertFromWebhook("mymall", "2");
 
         verify(repository).save(snapshot);
+    }
+
+    @Test
+    void upsertFromWebhook은_비회원_주문도_GUEST_타입으로_신규_저장한다() {
+        given(authorizationService.getValidCredential("mymall")).willReturn(credential);
+        Order guestSnapshot = guestOrder("mymall", "4", "N40", "2000");
+        given(cafe24OrderPort.getOrder("mymall", "4", credential)).willReturn(Optional.of(guestSnapshot));
+        given(repository.findByMallIdAndOrderId("mymall", "4")).willReturn(Optional.empty());
+
+        orderService.upsertFromWebhook("mymall", "4");
+
+        assertThat(guestSnapshot.getOrderType()).isEqualTo(OrderType.GUEST);
+        verify(repository).save(guestSnapshot);
     }
 
     @Test
@@ -252,6 +281,13 @@ class OrderServiceTest {
     private Order order(String mallId, String orderId, String orderStatus, String totalAmount) {
         return Order.register(
                 mallId, orderId, orderStatus, "member", "buyer", "buyer@test.com",
+                new BigDecimal(totalAmount), "card", LocalDateTime.now(), "{}", null, null, OrderEmbeddedResources.empty()
+        );
+    }
+
+    private Order guestOrder(String mallId, String orderId, String orderStatus, String totalAmount) {
+        return Order.register(
+                mallId, orderId, orderStatus, null, "guest-buyer", "guest@test.com",
                 new BigDecimal(totalAmount), "card", LocalDateTime.now(), "{}", null, null, OrderEmbeddedResources.empty()
         );
     }
