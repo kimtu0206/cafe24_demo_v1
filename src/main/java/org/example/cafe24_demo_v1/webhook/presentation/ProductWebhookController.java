@@ -41,36 +41,33 @@ public class ProductWebhookController extends AbstractCafe24WebhookController {
     @Operation(summary = "상품 생성 Webhook 수신", description = "Cafe24 상품 생성 이벤트를 수신하고 Cafe24 API로 재조회해 로컬 DB에 반영합니다.")
     @PostMapping("/created")
     public ResponseEntity<Void> created(@Parameter(hidden = true) @RequestHeader Map<String, String> headers, @RequestBody Cafe24WebhookPayload payload) {
-        return reject(headers, payload.eventNo(), payload.resource()).or(() -> requireProductNo(payload)).orElseGet(() -> {
+        return handle(headers, payload.eventNo(), payload.resource(), () -> requireProductNo(payload), () -> {
             log.info("Webhook received: eventNo={}, productNo={}", payload.eventNo(), payload.resource().productNo());
             eventPublisher.publishEvent(
                     new ProductCreatedEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().productNo())
             );
-            return ResponseEntity.ok().build();
         });
     }
 
     @Operation(summary = "상품 수정 Webhook 수신", description = "Cafe24 상품 수정 이벤트를 수신하고 Cafe24 API로 재조회해 로컬 DB를 갱신합니다.")
     @PostMapping("/updated")
     public ResponseEntity<Void> updated(@Parameter(hidden = true) @RequestHeader Map<String, String> headers, @RequestBody Cafe24WebhookPayload payload) {
-        return reject(headers, payload.eventNo(), payload.resource()).or(() -> requireProductNo(payload)).orElseGet(() -> {
+        return handle(headers, payload.eventNo(), payload.resource(), () -> requireProductNo(payload), () -> {
             log.info("Webhook received: eventNo={}, productNo={}", payload.eventNo(), payload.resource().productNo());
             eventPublisher.publishEvent(
                     new ProductUpdatedEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().productNo())
             );
-            return ResponseEntity.ok().build();
         });
     }
 
     @Operation(summary = "상품 삭제 Webhook 수신", description = "Cafe24 상품 삭제 이벤트를 수신하고 로컬 DB에서 해당 상품을 삭제합니다.")
     @PostMapping("/deleted")
     public ResponseEntity<Void> deleted(@Parameter(hidden = true) @RequestHeader Map<String, String> headers, @RequestBody Cafe24WebhookPayload payload) {
-        return reject(headers, payload.eventNo(), payload.resource()).or(() -> requireProductNo(payload)).orElseGet(() -> {
+        return handle(headers, payload.eventNo(), payload.resource(), () -> requireProductNo(payload), () -> {
             log.info("Webhook received: eventNo={}, productNo={}", payload.eventNo(), payload.resource().productNo());
             eventPublisher.publishEvent(
                     new ProductDeletedEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().productNo())
             );
-            return ResponseEntity.ok().build();
         });
     }
 

@@ -41,37 +41,33 @@ public class CarrierWebhookController extends AbstractCafe24WebhookController {
     @Operation(summary = "배송사 등록 Webhook 수신", description = "Cafe24 배송사 등록 이벤트를 수신합니다. 실제 DB 반영은 CarrierSyncScheduler 주기 동기화가 담당합니다.")
     @PostMapping("/created")
     public ResponseEntity<Void> created(@Parameter(hidden = true) @RequestHeader Map<String, String> headers, @RequestBody Cafe24WebhookPayload payload) {
-
-        return reject(headers, payload.eventNo(), payload.resource()).or(() -> requireShippingCarrierCode(payload)).orElseGet(() -> {
+        return handle(headers, payload.eventNo(), payload.resource(), () -> requireShippingCarrierCode(payload), () -> {
             log.info("Webhook received: eventNo={}, shippingCarrierCode={}", payload.eventNo(), payload.resource().shippingCarrierCode());
             eventPublisher.publishEvent(
                     new CarrierCreatedEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().shippingCarrierCode())
             );
-            return ResponseEntity.ok().build();
         });
     }
 
     @Operation(summary = "배송사 수정 Webhook 수신", description = "Cafe24 배송사 수정 이벤트를 수신합니다. 실제 DB 반영은 CarrierSyncScheduler 주기 동기화가 담당합니다.")
     @PostMapping("/updated")
     public ResponseEntity<Void> updated(@Parameter(hidden = true) @RequestHeader Map<String, String> headers, @RequestBody Cafe24WebhookPayload payload) {
-        return reject(headers, payload.eventNo(), payload.resource()).or(() -> requireShippingCarrierCode(payload)).orElseGet(() -> {
+        return handle(headers, payload.eventNo(), payload.resource(), () -> requireShippingCarrierCode(payload), () -> {
             log.info("Webhook received: eventNo={}, shippingCarrierCode={}", payload.eventNo(), payload.resource().shippingCarrierCode());
             eventPublisher.publishEvent(
                     new CarrierUpdatedEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().shippingCarrierCode())
             );
-            return ResponseEntity.ok().build();
         });
     }
 
     @Operation(summary = "배송사 삭제 Webhook 수신", description = "Cafe24 배송사 삭제 이벤트를 수신합니다. 실제 DB 반영은 CarrierSyncScheduler 주기 동기화가 담당합니다.")
     @PostMapping("/deleted")
     public ResponseEntity<Void> deleted(@Parameter(hidden = true) @RequestHeader Map<String, String> headers, @RequestBody Cafe24WebhookPayload payload) {
-        return reject(headers, payload.eventNo(), payload.resource()).or(() -> requireShippingCarrierCode(payload)).orElseGet(() -> {
+        return handle(headers, payload.eventNo(), payload.resource(), () -> requireShippingCarrierCode(payload), () -> {
             log.info("Webhook received: eventNo={}, shippingCarrierCode={}", payload.eventNo(), payload.resource().shippingCarrierCode());
             eventPublisher.publishEvent(
                     new CarrierDeletedEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().shippingCarrierCode())
             );
-            return ResponseEntity.ok().build();
         });
     }
 

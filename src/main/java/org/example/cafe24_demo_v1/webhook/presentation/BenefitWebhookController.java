@@ -41,36 +41,33 @@ public class BenefitWebhookController extends AbstractCafe24WebhookController {
     @Operation(summary = "혜택 등록 Webhook 수신", description = "Cafe24 혜택 등록 이벤트를 수신하고 Cafe24 API로 재조회해 로컬 DB에 반영합니다.")
     @PostMapping("/created")
     public ResponseEntity<Void> created(@Parameter(hidden = true) @RequestHeader Map<String, String> headers, @RequestBody Cafe24WebhookPayload payload) {
-        return reject(headers, payload.eventNo(), payload.resource()).or(() -> requireBenefitNo(payload)).orElseGet(() -> {
+        return handle(headers, payload.eventNo(), payload.resource(), () -> requireBenefitNo(payload), () -> {
             log.info("Webhook received: eventNo={}, benefitNo={}", payload.eventNo(), payload.resource().benefitNo());
             eventPublisher.publishEvent(
                     new BenefitCreatedEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().benefitNo())
             );
-            return ResponseEntity.ok().build();
         });
     }
 
     @Operation(summary = "혜택 수정 Webhook 수신", description = "Cafe24 혜택 수정 이벤트를 수신하고 Cafe24 API로 재조회해 로컬 DB에 반영합니다.")
     @PostMapping("/updated")
     public ResponseEntity<Void> updated(@Parameter(hidden = true) @RequestHeader Map<String, String> headers, @RequestBody Cafe24WebhookPayload payload) {
-        return reject(headers, payload.eventNo(), payload.resource()).or(() -> requireBenefitNo(payload)).orElseGet(() -> {
+        return handle(headers, payload.eventNo(), payload.resource(), () -> requireBenefitNo(payload), () -> {
             log.info("Webhook received: eventNo={}, benefitNo={}", payload.eventNo(), payload.resource().benefitNo());
             eventPublisher.publishEvent(
                     new BenefitUpdatedEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().benefitNo())
             );
-            return ResponseEntity.ok().build();
         });
     }
 
     @Operation(summary = "혜택 삭제 Webhook 수신", description = "Cafe24 혜택 삭제 이벤트를 수신하고 로컬 DB에서 혜택을 제거합니다.")
     @PostMapping("/deleted")
     public ResponseEntity<Void> deleted(@Parameter(hidden = true) @RequestHeader Map<String, String> headers, @RequestBody Cafe24WebhookPayload payload) {
-        return reject(headers, payload.eventNo(), payload.resource()).or(() -> requireBenefitNo(payload)).orElseGet(() -> {
+        return handle(headers, payload.eventNo(), payload.resource(), () -> requireBenefitNo(payload), () -> {
             log.info("Webhook received: eventNo={}, benefitNo={}", payload.eventNo(), payload.resource().benefitNo());
             eventPublisher.publishEvent(
                     new BenefitDeletedEvent(payload.eventNo(), payload.resource().mallId(), payload.resource().benefitNo())
             );
-            return ResponseEntity.ok().build();
         });
     }
 

@@ -48,12 +48,11 @@ public class OrderWebhookController extends AbstractCafe24WebhookController {
         JsonNode resource = payload.resource();
         Object resourceOrNull = (resource == null || resource.isNull()) ? null : resource;
 
-        return reject(headers, payload.eventNo(), resourceOrNull).or(() -> requireOrderId(payload)).orElseGet(() -> {
+        return handle(headers, payload.eventNo(), resourceOrNull, () -> requireOrderId(payload), () -> {
             log.info("Webhook received: eventNo={}, orderId={}", payload.eventNo(), payload.orderId());
             eventPublisher.publishEvent(
                     new OrderCreatedEvent(payload.eventNo(), payload.mallId(), payload.orderId(), resource.toString())
             );
-            return ResponseEntity.ok().build();
         });
     }
 
@@ -63,12 +62,11 @@ public class OrderWebhookController extends AbstractCafe24WebhookController {
         JsonNode resource = payload.resource();
         Object resourceOrNull = (resource == null || resource.isNull()) ? null : resource;
 
-        return reject(headers, payload.eventNo(), resourceOrNull).or(() -> requireOrderId(payload)).orElseGet(() -> {
+        return handle(headers, payload.eventNo(), resourceOrNull, () -> requireOrderId(payload), () -> {
             log.info("Webhook received: eventNo={}, orderId={}", payload.eventNo(), payload.orderId());
             eventPublisher.publishEvent(
                     new OrderCancelledEvent(payload.eventNo(), payload.mallId(), payload.orderId(), resource.toString())
             );
-            return ResponseEntity.ok().build();
         });
     }
 

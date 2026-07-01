@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * 기능별 Webhook 컨트롤러가 공통으로 거치는 검증(서명 확인, 필수값 확인) 로직을 모아둔 베이스 클래스.
@@ -39,6 +40,19 @@ abstract class AbstractCafe24WebhookController {
             return Optional.of(ResponseEntity.badRequest().build());
         }
         return Optional.empty();
+    }
+
+    /**
+     * 공통 검증(reject) 통과 후 기능별 추가 검증(extraValidation)까지 통과하면 이벤트를 발행하고 200을,
+     * 검증에 실패하면 그 결과(401/400)를 반환한다. 생성/수정/삭제 Webhook 엔드포인트마다 반복되던
+     * "검증 → 이벤트 발행 → 200 응답" 조합을 통합한다.
+     */
+    protected ResponseEntity<Void> handle(Map<String, String> headers, Integer eventNo, Object resource,
+                                           Supplier<Optional<ResponseEntity<Void>>> extraValidation, Runnable publishEvent) {
+        return reject(headers, eventNo, resource).or(extraValidation).orElseGet(() -> {
+            publishEvent.run();
+            return ResponseEntity.ok().build();
+        });
     }
 
     /**
