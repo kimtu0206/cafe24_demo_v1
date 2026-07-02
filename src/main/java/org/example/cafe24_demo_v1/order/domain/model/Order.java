@@ -35,6 +35,9 @@ public class Order {
     private String returnInfo;        // embed=return 응답 원본(JSON)
     private String cancellation;      // embed=cancellation 응답 원본(JSON)
     private String exchange;          // embed=exchange 응답 원본(JSON)
+    private String benefits;          // embed=benefits 응답 원본(JSON)
+    private String coupons;           // embed=coupons 응답 원본(JSON)
+    private String refunds;           // embed=refunds 응답 원본(JSON)
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -154,7 +157,9 @@ public class Order {
 
     /** 이 주문이 갖고 있는 embed 하위 리소스 원본을 VO로 묶어서 반환한다. */
     public OrderEmbeddedResources getEmbeds() {
-        return new OrderEmbeddedResources(items, receivers, buyer, returnInfo, cancellation, exchange);
+        return new OrderEmbeddedResources(
+                items, receivers, buyer, returnInfo, cancellation, exchange, benefits, coupons, refunds
+        );
     }
 
     private void applyEmbeds(OrderEmbeddedResources embeds) {
@@ -164,6 +169,9 @@ public class Order {
         this.returnInfo = embeds.getReturnInfo();
         this.cancellation = embeds.getCancellation();
         this.exchange = embeds.getExchange();
+        this.benefits = embeds.getBenefits();
+        this.coupons = embeds.getCoupons();
+        this.refunds = embeds.getRefunds();
     }
 
     // DB 저장 후 생성된 PK를 주입할 때 사용

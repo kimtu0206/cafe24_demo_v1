@@ -34,7 +34,10 @@ class OrderMapper {
                         entity.getBuyer(),
                         entity.getReturnInfo(),
                         entity.getCancellation(),
-                        entity.getExchange()
+                        entity.getExchange(),
+                        entity.getBenefits(),
+                        entity.getCoupons(),
+                        entity.getRefunds()
                 ),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
@@ -64,6 +67,9 @@ class OrderMapper {
         entity.setReturnInfo(domain.getReturnInfo());
         entity.setCancellation(domain.getCancellation());
         entity.setExchange(domain.getExchange());
+        entity.setBenefits(domain.getBenefits());
+        entity.setCoupons(domain.getCoupons());
+        entity.setRefunds(domain.getRefunds());
         entity.setCreatedAt(domain.getCreatedAt());
         entity.setUpdatedAt(domain.getUpdatedAt());
         return entity;

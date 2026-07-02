@@ -42,11 +42,11 @@ public class Cafe24OrderClient implements Cafe24OrderPort {
     private static final DateTimeFormatter SEARCH_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     /**
-     * 주문 하위 리소스(품목/수령자/주문자/반품/취소/교환)를 한 번의 호출로 같이 조회하기 위한 embed 값.
+     * 주문 하위 리소스(품목/수령자/주문자/반품/취소/교환/혜택/쿠폰/환불)를 한 번의 호출로 같이 조회하기 위한 embed 값.
      * 각 리소스는 별도 엔드포인트(예: /orders/{order_id}/items)로 조회했을 때와 동일한 형태로 응답에 포함되며,
      * 컬럼화하지 않고 rawJson에 원본 그대로 보존한다(필드 구조 변경에 안전하게 대응하기 위함).
      */
-    private static final String EMBED_RESOURCES = "items,receivers,buyer,return,cancellation,exchange";
+    private static final String EMBED_RESOURCES = "items,receivers,buyer,return,cancellation,exchange,benefits,coupons,refunds";
 
     private final Cafe24Properties properties;
     private final RestTemplate restTemplate;
@@ -157,7 +157,7 @@ public class Cafe24OrderClient implements Cafe24OrderPort {
      *
      * buyerName: embed=buyer로 주문자정보를 함께 요청하지만, Cafe24의 개인정보 제공 동의 승인이 있어야
      * 응답에 실제 값이 채워진다. 동의 전이거나 embed 응답의 정확한 필드 구조가 확인되지 않아 우선 null로 둔다
-     * (embed로 받은 buyer/items/receivers/return/cancellation/exchange 원본은 rawJson에 보존되므로,
+     * (embed로 받은 buyer/items/receivers/return/cancellation/exchange/benefits/coupons/refunds 원본은 rawJson에 보존되므로,
      * 구조가 확인되면 이후 컬럼 매핑을 추가할 수 있다). buyerEmail은 대신 member_email로 채운다(비회원 주문이면 비어있을 수 있음).
      */
     private Order toDomain(String mallId, JsonNode node) {
@@ -189,6 +189,9 @@ public class Cafe24OrderClient implements Cafe24OrderPort {
         String returnInfo = null;
         String cancellation = null;
         String exchange = null;
+        String benefits = null;
+        String coupons = null;
+        String refunds = null;
 
         for (String resource : EMBED_RESOURCES.split(",")) {
             JsonNode embedded = node.get(resource);
@@ -200,10 +203,15 @@ public class Cafe24OrderClient implements Cafe24OrderPort {
                 case "return" -> returnInfo = json;
                 case "cancellation" -> cancellation = json;
                 case "exchange" -> exchange = json;
+                case "benefits" -> benefits = json;
+                case "coupons" -> coupons = json;
+                case "refunds" -> refunds = json;
             }
         }
 
-        return new OrderEmbeddedResources(items, receivers, buyer, returnInfo, cancellation, exchange);
+        return new OrderEmbeddedResources(
+                items, receivers, buyer, returnInfo, cancellation, exchange, benefits, coupons, refunds
+        );
     }
 
     private String text(JsonNode node, String field) {

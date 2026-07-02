@@ -83,6 +83,15 @@ class OrderEntity {
     @Column(name = "exchange", columnDefinition = "TEXT")
     private String exchange;   // embed=exchange 응답 원본(JSON)
 
+    @Column(name = "benefits", columnDefinition = "TEXT")
+    private String benefits;   // embed=benefits 응답 원본(JSON)
+
+    @Column(name = "coupons", columnDefinition = "TEXT")
+    private String coupons;   // embed=coupons 응답 원본(JSON)
+
+    @Column(name = "refunds", columnDefinition = "TEXT")
+    private String refunds;   // embed=refunds 응답 원본(JSON)
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

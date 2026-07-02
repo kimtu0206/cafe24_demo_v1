@@ -67,7 +67,7 @@ class Cafe24OrderClientTest {
     void getOrders는_하위_리소스를_함께_조회하기_위해_embed_파라미터를_보낸다() {
         LocalDateTime updatedSince = LocalDateTime.of(2017, 1, 1, 0, 0);
         mockServer.expect(requestTo(containsString(
-                        "embed=items,receivers,buyer,return,cancellation,exchange")))
+                        "embed=items,receivers,buyer,return,cancellation,exchange,benefits,coupons,refunds")))
                 .andExpect(method(GET))
                 .andRespond(withSuccess("{\"orders\": []}", MediaType.APPLICATION_JSON));
 
@@ -116,7 +116,7 @@ class Cafe24OrderClientTest {
 
     @Test
     void getOrders는_embed로_받은_하위_리소스를_각각_같은_이름의_필드에_담는다() {
-        // embed=items,receivers,buyer,return,cancellation,exchange 응답 시 주문 객체 안에 하위 리소스가 함께 포함된다.
+        // embed=items,receivers,buyer,return,cancellation,exchange,benefits,coupons,refunds 응답 시 주문 객체 안에 하위 리소스가 함께 포함된다.
         // 정확한 하위 필드 구조와 무관하게, 리소스 이름과 같은 필드에 원본 그대로 담기는지만 확인한다.
         mockServer.expect(requestTo(startsWith("https://mymall.cafe24api.com/api/v2/admin/orders?")))
                 .andRespond(withSuccess("""
@@ -137,7 +137,14 @@ class Cafe24OrderClientTest {
                             ],
                             "return": {"return_no": "1"},
                             "cancellation": {"cancel_no": "1"},
-                            "exchange": {"exchange_no": "1"}
+                            "exchange": {"exchange_no": "1"},
+                            "benefits": [
+                              {"benefit_no": "1"}
+                            ],
+                            "coupons": [
+                              {"coupon_no": "1"}
+                            ],
+                            "refunds": {"refund_no": "1"}
                           }
                         ]}
                         """, MediaType.APPLICATION_JSON));
@@ -152,7 +159,10 @@ class Cafe24OrderClientTest {
         assertThat(order.getReturnInfo()).contains("return_no");
         assertThat(order.getCancellation()).contains("cancel_no");
         assertThat(order.getExchange()).contains("exchange_no");
-        assertThat(order.getRawJson()).contains("샘플 상품", "receiver_phone", "return_no");
+        assertThat(order.getBenefits()).contains("benefit_no");
+        assertThat(order.getCoupons()).contains("coupon_no");
+        assertThat(order.getRefunds()).contains("refund_no");
+        assertThat(order.getRawJson()).contains("샘플 상품", "receiver_phone", "return_no", "benefit_no", "coupon_no", "refund_no");
         mockServer.verify();
     }
 
@@ -205,6 +215,9 @@ class Cafe24OrderClientTest {
         assertThat(order.getReturnInfo()).isNull();
         assertThat(order.getCancellation()).isNull();
         assertThat(order.getExchange()).isNull();
+        assertThat(order.getBenefits()).isNull();
+        assertThat(order.getCoupons()).isNull();
+        assertThat(order.getRefunds()).isNull();
     }
 
     @Test
@@ -282,7 +295,7 @@ class Cafe24OrderClientTest {
     @Test
     void getOrder는_단건_엔드포인트로_주문을_조회한다() {
         mockServer.expect(requestTo("https://mymall.cafe24api.com/api/v2/admin/orders/20170710-0000013"
-                        + "?embed=items,receivers,buyer,return,cancellation,exchange"))
+                        + "?embed=items,receivers,buyer,return,cancellation,exchange,benefits,coupons,refunds"))
                 .andExpect(method(GET))
                 .andRespond(withSuccess("""
                         {"order": {
@@ -307,7 +320,7 @@ class Cafe24OrderClientTest {
     @Test
     void getOrder는_404이면_빈_Optional을_반환한다() {
         mockServer.expect(requestTo("https://mymall.cafe24api.com/api/v2/admin/orders/missing"
-                        + "?embed=items,receivers,buyer,return,cancellation,exchange"))
+                        + "?embed=items,receivers,buyer,return,cancellation,exchange,benefits,coupons,refunds"))
                 .andRespond(withStatus(HttpStatus.NOT_FOUND).body("{\"error\": \"not found\"}"));
 
         Optional<Order> order = client.getOrder("mymall", "missing", credential);

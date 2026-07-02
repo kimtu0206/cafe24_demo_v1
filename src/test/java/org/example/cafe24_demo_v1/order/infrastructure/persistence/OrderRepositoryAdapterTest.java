@@ -143,7 +143,7 @@ class OrderRepositoryAdapterTest {
         return Order.register(
                 mallId, orderId, "N10", null, null, null,
                 new BigDecimal("1000"), "card", LocalDateTime.now(), "{}", null, null,
-                new OrderEmbeddedResources(null, null, buyerJson, null, null, null)
+                new OrderEmbeddedResources(null, null, buyerJson, null, null, null, null, null, null)
         );
     }
 
@@ -151,7 +151,7 @@ class OrderRepositoryAdapterTest {
         return Order.register(
                 mallId, orderId, "N10", null, null, null,
                 new BigDecimal("1000"), "card", LocalDateTime.now(), "{}", null, null,
-                new OrderEmbeddedResources(null, receiversJson, null, null, null, null)
+                new OrderEmbeddedResources(null, receiversJson, null, null, null, null, null, null, null)
         );
     }
 }

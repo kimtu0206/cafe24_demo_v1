@@ -13,7 +13,8 @@ class OrderTest {
     void register로_생성하면_입력한_값으로_초기화된다() {
         LocalDateTime orderedAt = LocalDateTime.of(2024, 1, 1, 12, 0);
         OrderEmbeddedResources embeds = new OrderEmbeddedResources(
-                "[{\"item_no\":1}]", "[{\"receiver_name\":\"홍길동\"}]", "{\"name\":\"홍길동\"}", null, null, null
+                "[{\"item_no\":1}]", "[{\"receiver_name\":\"홍길동\"}]", "{\"name\":\"홍길동\"}",
+                null, null, null, null, null, null
         );
         Order order = Order.register(
                 "mymall", "20200717-0029236", "N40", "gdhong", "Jessica Hong", "gdhong@cafe24corp.com",
@@ -37,6 +38,9 @@ class OrderTest {
         assertThat(order.getReturnInfo()).isNull();
         assertThat(order.getCancellation()).isNull();
         assertThat(order.getExchange()).isNull();
+        assertThat(order.getBenefits()).isNull();
+        assertThat(order.getCoupons()).isNull();
+        assertThat(order.getRefunds()).isNull();
         assertThat(order.getCreatedAt()).isNotNull();
     }
 
@@ -51,7 +55,10 @@ class OrderTest {
                 "N40", "gdhong", "변경된 이름", "new@cafe24corp.com",
                 new BigDecimal("2000"), "mileage", LocalDateTime.of(2024, 1, 2, 0, 0), "{\"changed\":true}",
                 null, null,
-                new OrderEmbeddedResources(null, null, null, "{\"return_no\":1}", null, null)
+                new OrderEmbeddedResources(
+                        null, null, null, "{\"return_no\":1}", null, null,
+                        "{\"benefit_no\":1}", "{\"coupon_no\":1}", "{\"refund_no\":1}"
+                )
         );
 
         assertThat(order.getOrderStatus()).isEqualTo("N40");
@@ -62,6 +69,9 @@ class OrderTest {
         assertThat(order.getOrderedAt()).isEqualTo(LocalDateTime.of(2024, 1, 2, 0, 0));
         assertThat(order.getRawJson()).isEqualTo("{\"changed\":true}");
         assertThat(order.getReturnInfo()).isEqualTo("{\"return_no\":1}");
+        assertThat(order.getBenefits()).isEqualTo("{\"benefit_no\":1}");
+        assertThat(order.getCoupons()).isEqualTo("{\"coupon_no\":1}");
+        assertThat(order.getRefunds()).isEqualTo("{\"refund_no\":1}");
         assertThat(order.getOrderType()).isEqualTo(OrderType.MEMBER);
     }
 
@@ -106,7 +116,8 @@ class OrderTest {
     @Test
     void getEmbeds는_현재_보유한_하위_리소스를_VO로_묶어서_반환한다() {
         OrderEmbeddedResources embeds = new OrderEmbeddedResources(
-                "items-json", "receivers-json", "buyer-json", "return-json", "cancellation-json", "exchange-json"
+                "items-json", "receivers-json", "buyer-json", "return-json", "cancellation-json", "exchange-json",
+                "benefits-json", "coupons-json", "refunds-json"
         );
         Order order = Order.register(
                 "mymall", "20200717-0029236", "N40", "gdhong", "Jessica Hong", "gdhong@cafe24corp.com",
@@ -121,5 +132,8 @@ class OrderTest {
         assertThat(result.getReturnInfo()).isEqualTo("return-json");
         assertThat(result.getCancellation()).isEqualTo("cancellation-json");
         assertThat(result.getExchange()).isEqualTo("exchange-json");
+        assertThat(result.getBenefits()).isEqualTo("benefits-json");
+        assertThat(result.getCoupons()).isEqualTo("coupons-json");
+        assertThat(result.getRefunds()).isEqualTo("refunds-json");
     }
 }
